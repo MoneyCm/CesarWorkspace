@@ -1,0 +1,5 @@
+customtkinter
+psutil
+py-cpuinfo
+GPUtil
+packaging
