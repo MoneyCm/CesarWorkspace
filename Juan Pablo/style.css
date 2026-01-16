@@ -1,0 +1,39 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #87CEEB;
+    /* Sky Blue */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#hud {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#speed-meter,
+#lap-counter {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+#controls-hint {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-size: 18px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
