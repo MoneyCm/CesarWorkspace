@@ -1,0 +1,140 @@
+/* DIAN Sim - Professional Light Theme */
+:root {
+    --dian-red: #D90000;
+    --dian-red-dark: #A60000;
+    --dian-bg: #F8F9FA;
+    --dian-card-bg: #FFFFFF;
+    --dian-text-main: #212529;
+    --dian-text-muted: #6C757D;
+    --dian-border: #E9ECEF;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+}
+
+/* Global Reset & Streamlit Overrides */
+.stApp {
+    background-color: var(--dian-bg);
+    color: var(--dian-text-main);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+    color: var(--dian-text-main) !important;
+    font-weight: 700 !important;
+}
+
+/* Sidebar Customization */
+[data-testid="stSidebar"] {
+    background-color: #FFFFFF;
+    border-right: 1px solid var(--dian-border);
+}
+
+[data-testid="stSidebar"] h1 {
+    color: var(--dian-red) !important;
+}
+
+/* Custom Component: DIAN Card */
+.dian-card {
+    background: var(--dian-card-bg);
+    border: 1px solid var(--dian-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    /* Soft light shadow */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dian-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    border-color: var(--dian-red);
+}
+
+.dian-card-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--dian-red);
+    margin-bottom: 0.5rem;
+}
+
+.dian-stat {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--dian-text-main);
+}
+
+.dian-stat-label {
+    font-size: 0.9rem;
+    color: var(--dian-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Buttons */
+.stButton button {
+    background-color: var(--dian-red) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1.5rem !important;
+    transition: all 0.2s !important;
+}
+
+.stButton button:hover {
+    background-color: var(--dian-red-dark) !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(217, 0, 0, 0.2);
+}
+
+/* Custom Header */
+.dian-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--dian-border);
+    margin-bottom: 2rem;
+}
+
+.dian-logo-text {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--dian-text-main);
+    /* Fallback */
+    background: linear-gradient(90deg, #D90000 0%, #333333 100%);
+    /* Red to Dark Gray */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Question Styling */
+.question-stem {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #F8F9FA;
+    /* Light Gray */
+    border-left: 5px solid var(--dian-red);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    color: #333;
+}
+
+/* Option handling is native Streamlit, but we can ensure readability */
+.stRadio label {
+    color: var(--dian-text-main) !important;
+    font-size: 1.05rem;
+}
+
+/* Metrics & Progress */
+[data-testid="stMetricValue"] {
+    color: var(--dian-text-main) !important;
+}
+
+[data-testid="stMetricLabel"] {
+    color: var(--dian-text-muted) !important;
+}

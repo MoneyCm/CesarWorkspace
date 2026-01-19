@@ -1,0 +1,14 @@
+--- REPORTE DE AUDITORÍA TECHAUDIT ---
+Equipo: EDQE-PAC-39040
+Fecha: 2026-01-14 15:28:07.703751
+OS: Windows 10
+----------------------------------------
+CPU: Intel(R) Core(TM) i3-4100M CPU @ 2.50GHz
+RAM: 15.93 GB
+GPU: Integrada / No Detectada
+Almacenamiento:
+ST500LT012-1DG142: 465.76GB (Fixed hard disk media)
+
+----------------------------------------
+RECOMENDACIONES:
+- 🟡 Sugerencia: Migrar a SSD para mejorar velocidad

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HandyPinball Arcade - Premium Experience</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Fórmulas y Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <!-- HUD Layer -->
+        <div id="hud">
+            <div class="score-container">
+                <span class="label">SCORE</span>
+                <span id="score">000000</span>
+            </div>
+            <div class="multiplier-container">
+                <span id="multiplier">x1</span>
+            </div>
+            <div class="balls-container">
+                <span class="label">BALLS</span>
+                <div id="ball-icons"></div>
+            </div>
+        </div>
+
+        <!-- Camera Feed for Tracking -->
+        <div id="camera-preview">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="tracking-canvas"></canvas>
+        </div>
+
+        <!-- Canvas for Three.js Rendering -->
+        <div id="render-target"></div>
+        
+        <!-- Game Over / Start Layer -->
+        <div id="overlay" class="visible">
+            <h1>HANDY PINBALL</h1>
+            <p>Usa tus manos para controlar el destino</p>
+            <button id="start-btn">INSERT COIN (START)</button>
+        </div>
+    </div>
+    <script src="main.js" type="module"></script>
+</body>
+</html>
