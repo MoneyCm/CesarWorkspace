@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pinball HTML5 (Standalone)</title>
+  <style>
+    :root{
+      --green:#0f7a43; /* mesa */
+      --green-dark:#0b5a33;
+      --red:#e34850;   /* flippers */
+      --yellow:#ffd166;/* bumpers */
+      --rail:#203040;  /* bordes */
+      --shadow:rgba(0,0,0,.45);
+    }
+    html,body{height:100%;margin:0}
+    body{display:flex;align-items:center;justify-content:center;background:#111830;color:#e6eef9;font-family:system-ui,Segoe UI,Roboto,Inter,Arial}
+    .wrap{position:relative}
+    #scoreHud{position:absolute;left:10px;top:8px;background:rgba(0,0,0,.45);padding:6px 10px;border-radius:8px;font-weight:700;backdrop-filter:blur(2px)}
+    #help{position:absolute;right:10px;top:8px;color:#c0c8dd;font-size:12px;opacity:.9}
+    canvas{background:linear-gradient(180deg,var(--green) 0%, var(--green-dark) 100%);box-shadow:0 18px 50px var(--shadow), inset 0 0 60px rgba(255,255,255,.07);border-radius:14px;border:6px solid #0b1626}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="scoreHud">Puntaje: <span id="score">0</span></div>
+    <div id="help">Flechas: flippers · R: reiniciar</div>
+    <canvas id="game" width="800" height="600"></canvas>
+  </div>
+
+  <script>
+  // Pinball en un único archivo — HTML5 Canvas 800x600
+  // Controles: ArrowLeft/ArrowRight para flippers. R para reiniciar.
+  (function(){
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // HUD
+    const scoreEl = document.getElementById('score');
+    let score = 0;
+
+    // Utilidades vectoriales
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const len=(x,y)=>Math.hypot(x,y);
+
+    // Físicas globales
+    const GRAV = 1800;         // gravedad px/s^2
+    const FRICTION = 0.997;    // fricción lineal
+    const REST = 0.93;         // restitución rebote estándar
+
+    // Clases de elementos
+    class Ball{
+      constructor(x,y){ this.x=x; this.y=y; this.vx=0; this.vy=0; this.r=9; this.inPlay=true; this.trail=[]; }
+      launch(speed=-950){ this.vx=0; this.vy=speed; this.inPlay=true; }
+      step(dt){
+        if(!this.inPlay) return;
+        this.vy += GRAV*dt;
+        this.x += this.vx*dt; this.y += this.vy*dt;
+        this.vx *= FRICTION; this.vy *= FRICTION;
+        // estela
+        this.trail.push({x:this.x,y:this.y}); if(this.trail.length>12) this.trail.shift();
+      }
+      draw(){
+        // estela suave
+        for(let i=0;i<this.trail.length;i++){
+          const t=i/this.trail.length; const a=t*0.35; const r=this.r*(0.7+t*0.3);
+          ctx.fillStyle=`rgba(230,235,245,${a})`;
+          ctx.beginPath(); ctx.arc(this.trail[i].x,this.trail[i].y,r,0,Math.PI*2); ctx.fill();
+        }
+        // bola metalizada
+        const g=ctx.createRadialGradient(this.x-3,this.y-3,1,this.x,this.y,this.r);
+        g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#b9c2cc');
+        ctx.fillStyle=g; ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      }
+    }
+
+    // Segmento con colisión círculo-segmento (pared)
+    class Segment{
+      constructor(x1,y1,x2,y2,rest=REST){ this.x1=x1; this.y1=y1; this.x2=x2; this.y2=y2; this.rest=rest; }
+      collide(ball){
+        const {x1,y1,x2,y2} = this; const vx=x2-x1, vy=y2-y1; const wx=ball.x-x1, wy=ball.y-y1; const vv=vx*vx+vy*vy||1;
+        let t=(wx*vx+wy*vy)/vv; t=clamp(t,0,1);
+        const px=x1+t*vx, py=y1+t*vy; const dx=ball.x-px, dy=ball.y-py; const d=Math.hypot(dx,dy);
+        if(d<ball.r){
+          const nx=dx/(d||1e-6), ny=dy/(d||1e-6); // normal hacia fuera del segmento
+          // separar
+          const overlap = ball.r - d; ball.x += nx*overlap; ball.y += ny*overlap;
+          // reflejar velocidad
+          const vn = ball.vx*nx + ball.vy*ny; if(vn<0){ ball.vx -= (1+this.rest)*vn*nx; ball.vy -= (1+this.rest)*vn*ny; }
+        }
+      }
+      draw(){ ctx.strokeStyle='#18283c'; ctx.lineWidth=6; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(this.x1,this.y1); ctx.lineTo(this.x2,this.y2); ctx.stroke(); }
+    }
+
+    // Arco curvo (pared circular interior): colisión con la circunferencia desde dentro
+    class ArcWall{
+      constructor(cx,cy,r,ang0=0,ang1=Math.PI*2,rest=REST){ this.cx=cx; this.cy=cy; this.r=r; this.a0=ang0; this.a1=ang1; this.rest=rest; }
+      // Comprueba si el punto está dentro del rango angular
+      inRange(ax){ const a=((ax-Math.min(this.a0,this.a1))%(Math.PI*2)+(Math.PI*2))%(Math.PI*2); const span=((this.a1-this.a0+Math.PI*2)%(Math.PI*2)); return a<=span; }
+      collide(ball){
+        const dx=ball.x-this.cx, dy=ball.y-this.cy; const d=Math.hypot(dx,dy); const ang=Math.atan2(dy,dx);
+        if(!this.inRange(ang)) return;
+        if(d>this.r-ball.r){
+          const nx=dx/(d||1e-6), ny=dy/(d||1e-6); // normal hacia fuera del centro
+          const overlap = (this.r-ball.r) - d; // negativo => empuja hacia dentro
+          ball.x += nx*overlap; ball.y += ny*overlap;
+          const vn = ball.vx*nx + ball.vy*ny; if(vn>0){ // saliendo; invertir hacia dentro
+            ball.vx -= (1+this.rest)*vn*nx; ball.vy -= (1+this.rest)*vn*ny;
+          }
+        }
+      }
+      draw(){ ctx.strokeStyle='#18283c'; ctx.lineWidth=6; ctx.beginPath(); ctx.arc(this.cx,this.cy,this.r,this.a0,this.a1); ctx.stroke(); }
+    }
+
+    // Bumper circular que empuja y da puntos
+    class Bumper{
+      constructor(x,y,r=20,force=1100,points=50){ this.x=x; this.y=y; this.r=r; this.force=force; this.points=points; }
+      collide(ball){
+        const dx=ball.x-this.x, dy=ball.y-this.y; const d=Math.hypot(dx,dy); const R=ball.r+this.r;
+        if(d<R){
+          const nx=dx/(d||1e-6), ny=dy/(d||1e-6);
+          const overlap = R-d; ball.x += nx*overlap; ball.y += ny*overlap;
+          ball.vx += nx*this.force*0.016; ball.vy += ny*this.force*0.016; // impulso
+          score += this.points; updateScore();
+        }
+      }
+      draw(){
+        // halo
+        const g1=ctx.createRadialGradient(this.x,this.y,4,this.x,this.y,this.r+12); g1.addColorStop(0,'rgba(255,209,102,.65)'); g1.addColorStop(1,'rgba(255,209,102,0)');
+        ctx.fillStyle=g1; ctx.beginPath(); ctx.arc(this.x,this.y,this.r+12,0,Math.PI*2); ctx.fill();
+        // cuerpo
+        const g2=ctx.createRadialGradient(this.x-3,this.y-3,2,this.x,this.y,this.r);
+        g2.addColorStop(0,'#fff2b4'); g2.addColorStop(1,'#f5b800');
+        ctx.fillStyle=g2; ctx.strokeStyle='#b07a00'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      }
+    }
+
+    // Rectángulo elástico (bumper rectangular)
+    class RectBumper{
+      constructor(x,y,w,h,points=30){ this.x=x; this.y=y; this.w=w; this.h=h; this.points=points; this.rest=0.95; }
+      collide(ball){
+        const cx=clamp(ball.x,this.x,this.x+this.w); const cy=clamp(ball.y,this.y,this.y+this.h);
+        const dx=ball.x-cx, dy=ball.y-cy; const d=Math.hypot(dx,dy);
+        if(d<ball.r){
+          const nx=dx/(d||1e-6), ny=dy/(d||1e-6); const overlap = ball.r-d; ball.x += nx*overlap; ball.y += ny*overlap;
+          const vn = ball.vx*nx + ball.vy*ny; if(vn<0){ ball.vx -= (1+this.rest)*vn*nx; ball.vy -= (1+this.rest)*vn*ny; }
+          score+=this.points; updateScore();
+        }
+      }
+      draw(){ ctx.fillStyle='rgba(255,255,255,.07)'; ctx.strokeStyle='#8f9fbf'; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(this.x,this.y,this.w,this.h,6); ctx.fill(); ctx.stroke(); }
+    }
+
+    // Flipper (paleta) como cápsula: segmento con radio
+    class Flipper{
+      constructor(pivotX,pivotY,length,thickness,angleMin,angleMax,clockwise){
+        this.px=pivotX; this.py=pivotY; this.len=length; this.r=thickness; this.amin=angleMin; this.amax=angleMax; this.a = clockwise?angleMax:angleMin; this.av=0; this.key=false; this.clockwise=clockwise; }
+      tip(){ return {x:this.px+Math.cos(this.a)*this.len, y:this.py+Math.sin(this.a)*this.len}; }
+      update(dt){
+        const target = this.key ? (this.clockwise?this.amin:this.amax) : (this.clockwise?this.amax:this.amin);
+        const k=26, damp=18; const err=target-this.a; const acc=k*err - damp*this.av; this.av += acc*dt; this.a += this.av*dt;
+        // límites
+        if(this.a<this.amin){ this.a=this.amin; if(this.av<0) this.av=0; }
+        if(this.a>this.amax){ this.a=this.amax; if(this.av>0) this.av=0; }
+      }
+      collide(ball){
+        // colisión con cápsula (segmento + radio)
+        const t=this.tip(); const x1=this.px,y1=this.py,x2=t.x,y2=t.y; const vx=x2-x1, vy=y2-y1; const wx=ball.x-x1, wy=ball.y-y1; const vv=vx*vx+vy*vy||1;
+        let s=(wx*vx+wy*vy)/vv; s=clamp(s,0,1); const px=x1+s*vx, py=y1+s*vy; const dx=ball.x-px, dy=ball.y-py; const R=this.r+ball.r; const d=Math.hypot(dx,dy);
+        if(d<R){
+          const nx=dx/(d||1e-6), ny=dy/(d||1e-6); const overlap=R-d; ball.x+=nx*overlap; ball.y+=ny*overlap;
+          // velocidad del punto por rotación (ω x r)
+          const rx=px-this.px, ry=py-this.py; const vfx=-ry*this.av, vfy=rx*this.av; // CCW
+          const rvx=ball.vx - vfx, rvy=ball.vy - vfy; const vn=rvx*nx + rvy*ny;
+          if(vn<0){ const e=1.05; const j=-(1+e)*vn; ball.vx = rvx + j*nx + vfx; ball.vy = rvy + j*ny + vfy; score+=1; updateScore(); }
+        }
+      }
+      draw(){
+        const t=this.tip(); ctx.strokeStyle='var(--red)'; ctx.lineWidth=this.r*2; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(this.px,this.py); ctx.lineTo(t.x,t.y); ctx.stroke();
+        ctx.fillStyle='#743'; ctx.beginPath(); ctx.arc(this.px,this.py,this.r+2,0,Math.PI*2); ctx.fill();
+      }
+    }
+
+    // Mesa con paredes y curvas
+    class Table{
+      constructor(){ this.walls=[]; this.arcs=[]; }
+      build(){
+        this.walls.length=0; this.arcs.length=0;
+        // Laterales rectos
+        this.walls.push(new Segment(36, 40, 36, 520));
+        this.walls.push(new Segment(764, 40, 764, 580));
+        // Top recto intermedio
+        this.walls.push(new Segment(120, 40, 680, 40));
+        // Curvas superiores (bordes redondeados)
+        this.arcs.push(new ArcWall(120, 120, 80, Math.PI, 1.5*Math.PI)); // esquina superior izq
+        this.arcs.push(new ArcWall(680, 120, 80, 1.5*Math.PI, 0));        // esquina superior der
+        // Rampas inferiores hacia flippers (curvas suaves)
+        this.arcs.push(new ArcWall(200, 560, 120, 0.9*Math.PI, Math.PI));
+        this.arcs.push(new ArcWall(600, 560, 120, Math.PI, 1.1*Math.PI));
+        // Muros cerca del hueco de drenaje, dejando un gap entre flippers
+        this.walls.push(new Segment(36, 520, 300, 560));
+        this.walls.push(new Segment(500, 560, 764, 520));
+      }
+      collide(ball){
+        for(const s of this.walls) s.collide(ball);
+        for(const a of this.arcs) a.collide(ball);
+      }
+      draw(){
+        // Rails visuales
+        for(const a of this.arcs) a.draw();
+        for(const s of this.walls) s.draw();
+        // Drenaje
+        ctx.fillStyle='rgba(230,70,70,.18)'; ctx.fillRect(120, 580, 560, 12);
+      }
+    }
+
+    // Elementos del juego
+    const table = new Table(); table.build();
+    const ball = new Ball(740, 500); // inicia cerca del flipper derecho
+    const leftFlipper  = new Flipper(300, 560, 120, 12, -0.65, 0.25, false);
+    const rightFlipper = new Flipper(500, 560, 120, 12, Math.PI-0.25, Math.PI+0.65, true);
+    const bumpers = [
+      new Bumper(240, 200, 22, 1200, 100),
+      new Bumper(560, 210, 22, 1200, 100),
+      new Bumper(400, 140, 26, 1400, 150),
+    ];
+    const rects = [
+      new RectBumper(370, 260, 60, 16, 40),
+      new RectBumper(200, 340, 90, 16, 40),
+      new RectBumper(520, 340, 90, 16, 40),
+    ];
+
+    function updateScore(){ scoreEl.textContent = score; }
+
+    // Entrada
+    const keys={left:false,right:false};
+    window.addEventListener('keydown',e=>{ if(e.code==='ArrowLeft') keys.left=true; if(e.code==='ArrowRight') keys.right=true; if(e.code==='KeyR') hardReset(); });
+    window.addEventListener('keyup',e=>{ if(e.code==='ArrowLeft') keys.left=false; if(e.code==='ArrowRight') keys.right=false; });
+
+    function hardReset(){ score=0; updateScore(); ball.x=740; ball.y=500; ball.vx=0; ball.vy=0; ball.inPlay=true; }
+
+    // Bucle principal
+    let last=performance.now();
+    function loop(t){
+      const dt=Math.min(1/30,(t-last)/1000); last=t;
+      step(dt); draw(); requestAnimationFrame(loop);
+    }
+
+    function step(dt){
+      // actualizar flippers según teclas
+      leftFlipper.key = keys.left; rightFlipper.key = keys.right;
+      leftFlipper.update(dt); rightFlipper.update(dt);
+
+      ball.step(dt);
+      // colisiones
+      table.collide(ball);
+      for(const b of bumpers) b.collide(ball);
+      for(const r of rects) r.collide(ball);
+      leftFlipper.collide(ball); rightFlipper.collide(ball);
+
+      // pérdida: si cae por debajo
+      if(ball.y - ball.r > H-10){
+        // reinicia encima de flipper derecho
+        ball.x=740; ball.y=500; ball.vx=0; ball.vy=0; ball.inPlay=true; ball.trail.length=0;
+      }
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      // sombra interior
+      const vign=ctx.createRadialGradient(W/2,H/2,60,W/2,H/2,Math.max(W,H));
+      vign.addColorStop(0,'rgba(255,255,255,0)'); vign.addColorStop(1,'rgba(0,0,0,.25)');
+      ctx.fillStyle=vign; ctx.fillRect(0,0,W,H);
+
+      // Rails y bordes
+      table.draw();
+
+      // Obstáculos
+      for(const r of rects) r.draw();
+      for(const b of bumpers) b.draw();
+
+      // Flippers
+      leftFlipper.draw(); rightFlipper.draw();
+
+      // Bola
+      ball.draw();
+    }
+
+    // Empieza con una pequeña velocidad hacia arriba
+    setTimeout(()=>ball.launch(-900), 300);
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
+
