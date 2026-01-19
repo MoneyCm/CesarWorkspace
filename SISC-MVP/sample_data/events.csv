@@ -1,0 +1,7 @@
+fecha_hecho,hora,tipo_evento,modalidad,barrio,lat,lon,fuente,victima_sexo,victima_edad,arma
+2023-01-15,13:30:00,Hurto,Peatón,Centro,3.3475,-76.5833,Policia,M,34,Sin arma
+2023-02-02,22:10:00,Lesión personal,Agresión,El Pueblo,3.3501,-76.5800,Servicios de Salud,F,28,Cuchillo
+2023-03-18,02:20:00,Accidente,Tránsito,La Playa,3.3450,-76.5850,Movilidad,,,
+2024-05-05,18:45:00,Hurto,Establecimiento,Centro,3.3476,-76.5834,Policia,M,22,Sin arma
+2024-07-12,23:59:00,Violencia intrafamiliar,Agresión,Los Naranjos,3.3490,-76.5820,Comisaria,F,40,
+2024-09-01,11:00:00,Hurto,Peatón,El Pueblo,3.3502,-76.5798,Policia,M,19,Sin arma

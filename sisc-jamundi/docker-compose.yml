@@ -1,0 +1,29 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=sqlite:///./db/data/dian_sim.db
+    volumes:
+      - ./db/data:/app/db/data
+    depends_on:
+      - simulator
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.sim
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=sqlite:///./db/data/dian_sim.db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./db/data:/app/db/data
+    restart: always
+
+volumes:
+  db_data:

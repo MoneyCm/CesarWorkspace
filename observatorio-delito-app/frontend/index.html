@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Observatorio del Delito – Jamundí</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Observatorio del Delito – Jamundí</h1>
+    <p>MVP de análisis: series temporales y mapa de casos</p>
+  </header>
+
+  <section class="upload-section">
+    <h3>Cargar Datos</h3>
+    <div class="upload-container">
+      <input type="file" id="fileInput" accept=".xlsx,.csv" />
+      <button id="btnCargar">Cargar Archivo Excel/CSV</button>
+      <button id="btnCargarEjemplo">Cargar Datos de Ejemplo</button>
+    </div>
+    <div id="uploadStatus"></div>
+  </section>
+
+  <section class="filters">
+    <label>Delito: 
+      <select id="delitoSelect"><option value="">(Todos)</option></select>
+    </label>
+    <label>Inicio: <input type="date" id="inicio"></label>
+    <label>Fin: <input type="date" id="fin"></label>
+    <label>Agrupación: 
+      <select id="agrupacion">
+        <option value="mensual">Mensual</option>
+        <option value="anual">Anual</option>
+      </select>
+    </label>
+    <button id="btnActualizar">Actualizar</button>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h3>Evolución</h3>
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="card">
+      <h3>Mapa</h3>
+      <div id="map"></div>
+    </div>
+  </section>
+
+  <footer>
+    <small>MVP – Observatorio del Delito Jamundí</small>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

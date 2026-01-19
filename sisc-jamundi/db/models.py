@@ -1,0 +1,55 @@
+import datetime
+import json
+import uuid
+from sqlalchemy import Column, String, Integer, Text, Boolean, DateTime, Float, ForeignKey, JSON
+from sqlalchemy.orm import declarative_base, relationship
+
+Base = declarative_base()
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    question_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    track = Column(String, nullable=False)  # FUNCIONAL | COMPORTAMENTAL | INTEGRIDAD
+    competency = Column(String, nullable=False)
+    topic = Column(String, nullable=False)
+    difficulty = Column(Integer, nullable=False) # 1-5
+    stem = Column(Text, nullable=False)
+    options_json = Column(JSON, nullable=False)
+    correct_key = Column(String, nullable=True)
+    rationale = Column(Text, nullable=True)
+    source_refs = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    hash_norm = Column(String, unique=True, nullable=False)
+
+    attempts = relationship("Attempt", back_populates="question")
+
+class Attempt(Base):
+    __tablename__ = "attempts"
+
+    attempt_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    question_id = Column(String(36), ForeignKey("questions.question_id"))
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    chosen_key = Column(String, nullable=False)
+    is_correct = Column(Boolean, nullable=False)
+    time_sec = Column(Integer, nullable=True)
+    confidence_1_5 = Column(Integer, nullable=True)
+    error_tag = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    question = relationship("Question", back_populates="attempts")
+
+class Skill(Base):
+    __tablename__ = "skills"
+
+    skill_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    track = Column(String, nullable=False)
+    competency = Column(String, nullable=False)
+    topic = Column(String, nullable=False)
+    mastery_score = Column(Float, default=0.0) # 0-100
+    priority_weight = Column(Float, default=1.0)
+    last_seen = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Unique constraint for track/competency/topic combination could be added via Index/UniqueConstraint
+    # but for simplicity we'll handle uniqueness via application logic or add __table_args__

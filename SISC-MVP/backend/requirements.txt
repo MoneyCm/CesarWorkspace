@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy==2.0.19
+psycopg2-binary
+python-multipart
+passlib[bcrypt]
+python-jose[cryptography]
+pydantic
+aiofiles
+geopandas
+shapely
+geoalchemy2
+weasyprint
+python-dotenv

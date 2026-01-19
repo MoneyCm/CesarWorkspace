@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Botón de Pánico — Ciudadanía</title>
+  <meta name="theme-color" content="#ff4d6d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Botón de Pánico</h1>
+    <button id="retryBtn" class="ghost" title="Reintentar envíos pendientes">Reintentar envíos</button>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Emergencia</h2>
+      <p>Al presionar el botón, se envía una alerta con tu ubicación a la central (o queda en cola si no hay conexión).</p>
+      <button id="panicBtn" class="panic">Enviar alerta</button>
+      <div id="status" class="status">Estado: listo</div>
+    </section>
+    <section class="panel">
+      <h2>Evidencia</h2>
+      <p>Adjunta fotos o video (se subirán junto a la alerta o quedarán en cola).</p>
+      <input id="evidence" type="file" accept="image/*,video/*" multiple capture>
+      <ul id="evidenceList"></ul>
+    </section>
+    <section class="panel">
+      <h2>Mensajes</h2>
+      <div id="inbox" class="inbox">Sin mensajes</div>
+    </section>
+  </main>
+  <script>
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+  </script>
+  <script src="script.js"></script>
+</body>
+</html>
