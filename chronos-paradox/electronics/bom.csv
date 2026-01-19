@@ -1,0 +1,21 @@
+Category,Qty,Part,Notes
+Controller,1,Teensy 4.1,Cortex-M7 600MHz
+Drivers,2,ULN2803A,8ch Darlington array (control señales)
+Power MOSFET,10,IRLZ44N or AOI518,Canal N lógica-nivel para bobinas
+Diodes,20,1N5408,Flyback en bobinas
+LED Driver,2,TLC5940,16ch PWM (indicadores/GI)
+LED Addressable,80,WS2812B,RGB direccionable 5V
+Solenoids,10,24V / 12V,Flippers/bumpers/kickers/scoop
+Motor,1,NEMA17 + TMC2209,Portal giratorio
+Sensors,10,IR break-beam,Haz roto rampas
+Sensors,10,Microswitch,Targets/flippers
+Sensors,2,Reed/Hall,Plunger/lanzador
+Tilt,1,SW-420 + Plumb,Tilt combinado
+PSU,1,5V 10A,LEDs + lógica
+PSU,1,24V 10A,Bobinas
+PSU,1,12V 3A,Motor (opcional)
+Fuses,6,Automotive blade,5A/10A/3A por rama
+Wiring,-,AWG 18/20/22,Cables potencia/señal
+Metal,-,Acero inox 0.8–1.0mm,Guías y rampas
+Plastics,-,PETG 0.5–1.0mm,Protectores
+Wood,-,MDF 18mm / Abedul 12mm,Gabinete y tablero

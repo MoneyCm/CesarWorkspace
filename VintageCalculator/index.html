@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HP Prime G2 Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="background-container"></div>
+
+    <div class="hp-prime">
+        <div class="screen-bezel">
+            <div class="screen-content">
+                <!-- Status Bar -->
+                <div class="status-bar">
+                    <span>HP Prime</span>
+                    <span class="time">12:00</span>
+                </div>
+
+                <!-- Calculation View -->
+                <div id="calc-view" class="view active">
+                    <div class="history" id="history"></div>
+                    <div class="input-line">
+                        <span class="prompt">CAS ></span>
+                        <input type="text" id="screen" value="" placeholder="Enter expression...">
+                    </div>
+                </div>
+
+                <!-- Graph View -->
+                <div id="graph-view" class="view">
+                    <div id="plot-area"></div>
+                    <div class="graph-overlay">
+                        <input type="text" id="graph-input" placeholder="f(x) = sin(x)" value="sin(x)">
+                        <button onclick="plotGraph(false)">2D</button>
+                        <button onclick="plotGraph(true)">3D</button>
+                    </div>
+                </div>
+            </div>
+            <div class="brand-logo">hp</div>
+        </div>
+
+        <div class="keyboard">
+            <!-- Top Function Row (Silver Keys) -->
+            <div class="key-row silver-row">
+                <button class="key silver" onclick="switchView('calc')">Symb</button>
+                <button class="key silver" onclick="switchView('graph')">Plot</button>
+                <button class="key silver" onclick="switchView('calc')">Num</button>
+                <button class="key silver" onclick="switchView('calc')">Home</button>
+            </div>
+
+            <!-- Navigation / Edit Row -->
+            <div class="key-row nav-row">
+                <button class="key dark small" onclick="appendFunction('sin(')">Sin</button>
+                <button class="key dark small" onclick="appendFunction('cos(')">Cos</button>
+                <button class="key dark small" onclick="appendFunction('tan(')">Tan</button>
+                <button class="key dark small" onclick="appendOperator('^')">x^y</button>
+                <button class="key dark small" onclick="deleteLast()">DEL</button>
+            </div>
+
+            <!-- Main Keypad -->
+            <div class="main-grid">
+                <!-- Left Side (Scientific) -->
+                <div class="sci-col">
+                    <button class="key dark" onclick="appendFunction('sqrt(')">√</button>
+                    <button class="key dark" onclick="appendFunction('log(')">LN</button>
+                    <button class="key dark" onclick="appendFunction('(')">(</button>
+                    <button class="key dark" onclick="appendFunction(')')">)</button>
+                    <button class="key dark" onclick="clearScreen()">On/C</button>
+                </div>
+
+                <!-- Numpad -->
+                <div class="numpad-grid">
+                    <button class="key light" onclick="appendNumber('7')">7</button>
+                    <button class="key light" onclick="appendNumber('8')">8</button>
+                    <button class="key light" onclick="appendNumber('9')">9</button>
+                    <button class="key dark" onclick="appendOperator('/')">÷</button>
+
+                    <button class="key light" onclick="appendNumber('4')">4</button>
+                    <button class="key light" onclick="appendNumber('5')">5</button>
+                    <button class="key light" onclick="appendNumber('6')">6</button>
+                    <button class="key dark" onclick="appendOperator('*')">×</button>
+
+                    <button class="key light" onclick="appendNumber('1')">1</button>
+                    <button class="key light" onclick="appendNumber('2')">2</button>
+                    <button class="key light" onclick="appendNumber('3')">3</button>
+                    <button class="key dark" onclick="appendOperator('-')">-</button>
+
+                    <button class="key light" onclick="appendNumber('0')">0</button>
+                    <button class="key light" onclick="appendNumber('.')">.</button>
+                    <button class="key dark" onclick="appendFunction('pi')">π</button>
+                    <button class="key dark" onclick="appendOperator('+')">+</button>
+                </div>
+            </div>
+
+            <!-- Enter Key (Bottom Right) -->
+            <div class="enter-row">
+                <button class="key blue-enter" onclick="calculate()">Enter</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
