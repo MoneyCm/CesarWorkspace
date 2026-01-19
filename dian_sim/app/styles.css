@@ -1,140 +1,152 @@
-/* DIAN Sim - Professional Light Theme */
+/* DIAN Sim - Professional Modern Theme */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
 :root {
-    --dian-red: #D90000;
-    --dian-red-dark: #A60000;
-    --dian-bg: #F8F9FA;
-    --dian-card-bg: #FFFFFF;
-    --dian-text-main: #212529;
-    --dian-text-muted: #6C757D;
-    --dian-border: #E9ECEF;
-    --radius-md: 8px;
-    --radius-lg: 12px;
+    --dian-red: #E60000;
+    --dian-red-dark: #B30000;
+    --dian-bg: #F0F2F6;
+    --dian-card-bg: rgba(255, 255, 255, 0.85);
+    --dian-text-main: #1A1C1E;
+    --dian-text-muted: #5F6368;
+    --dian-border: rgba(0, 0, 0, 0.08);
+    --radius-md: 10px;
+    --radius-lg: 20px;
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
 }
 
 /* Global Reset & Streamlit Overrides */
 .stApp {
-    background-color: var(--dian-bg);
+    background: radial-gradient(circle at top right, #FDFDFD, #F0F2F6);
     color: var(--dian-text-main);
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Outfit', sans-serif !important;
 }
 
-h1,
-h2,
-h3 {
+h1, h2, h3 {
+    font-family: 'Outfit', sans-serif !important;
     color: var(--dian-text-main) !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
 }
 
 /* Sidebar Customization */
 [data-testid="stSidebar"] {
-    background-color: #FFFFFF;
+    background-color: rgba(255, 255, 255, 0.95);
     border-right: 1px solid var(--dian-border);
+    backdrop-filter: blur(10px);
 }
 
-[data-testid="stSidebar"] h1 {
-    color: var(--dian-red) !important;
-}
-
-/* Custom Component: DIAN Card */
+/* Custom Component: DIAN Card (Glassmorphism) */
 .dian-card {
     background: var(--dian-card-bg);
-    border: 1px solid var(--dian-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    /* Soft light shadow */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--glass-shadow);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .dian-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.1);
     border-color: var(--dian-red);
 }
 
 .dian-card-header {
-    font-size: 1.1rem;
-    font-weight: bold;
+    font-size: 1.25rem;
+    font-weight: 800;
     color: var(--dian-red);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
 }
 
 .dian-stat {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 800;
     color: var(--dian-text-main);
+    background: linear-gradient(135deg, var(--dian-text-main) 0%, #444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .dian-stat-label {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--dian-text-muted);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
 /* Buttons */
 .stButton button {
-    background-color: var(--dian-red) !important;
+    background: linear-gradient(135deg, var(--dian-red) 0%, #FF3D3D 100%) !important;
     color: white !important;
     border: none !important;
-    border-radius: var(--radius-md) !important;
-    font-weight: 600 !important;
-    padding: 0.5rem 1.5rem !important;
-    transition: all 0.2s !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    padding: 0.75rem 2rem !important;
+    box-shadow: 0 4px 15px rgba(230, 0, 0, 0.2) !important;
+    transition: all 0.3s ease !important;
 }
 
 .stButton button:hover {
-    background-color: var(--dian-red-dark) !important;
-    transform: scale(1.02);
-    box-shadow: 0 4px 8px rgba(217, 0, 0, 0.2);
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(230, 0, 0, 0.3) !important;
 }
 
 /* Custom Header */
 .dian-header-container {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--dian-border);
-    margin-bottom: 2rem;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.5rem 0;
+    margin-bottom: 2.5rem;
+    position: relative;
+}
+
+.dian-header-container::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--dian-red);
+    border-radius: 2px;
 }
 
 .dian-logo-text {
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: 800;
-    color: var(--dian-text-main);
-    /* Fallback */
-    background: linear-gradient(90deg, #D90000 0%, #333333 100%);
-    /* Red to Dark Gray */
+    letter-spacing: -1px;
+    background: linear-gradient(90deg, #E60000 0%, #1A1C1E 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
 /* Question Styling */
 .question-stem {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
+    font-weight: 400;
     line-height: 1.6;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    background: #F8F9FA;
-    /* Light Gray */
-    border-left: 5px solid var(--dian-red);
-    border-radius: 0 var(--radius-md) var(--radius-md) 0;
-    color: #333;
+    margin-bottom: 2rem;
+    padding: 1.5rem 2rem;
+    background: rgba(255, 255, 255, 0.6);
+    border-left: 6px solid var(--dian-red);
+    border-radius: 0 15px 15px 0;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
 }
 
-/* Option handling is native Streamlit, but we can ensure readability */
-.stRadio label {
-    color: var(--dian-text-main) !important;
-    font-size: 1.05rem;
+/* Radio buttons container */
+[data-testid="stRadio"] > div {
+    gap: 1rem;
 }
 
 /* Metrics & Progress */
-[data-testid="stMetricValue"] {
-    color: var(--dian-text-main) !important;
-}
-
-[data-testid="stMetricLabel"] {
-    color: var(--dian-text-muted) !important;
+[data-testid="stMetric"] {
+    background: white;
+    padding: 1rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }

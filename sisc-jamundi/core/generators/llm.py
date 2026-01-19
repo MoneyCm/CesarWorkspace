@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import datetime
+import time
 from typing import List
 from db.models import Question
 from core.dedupe import compute_hash
@@ -86,18 +87,32 @@ class LLMGenerator:
                     candidates.append(chosen_model)
                 
                 # Fallbacks with 'models/' prefix which is safer
-                candidates.extend(["models/gemini-1.5-flash", "models/gemini-pro", "gemini-1.5-flash", "gemini-pro"])
+                candidates.extend([
+                    "models/gemini-1.5-flash", 
+                    "models/gemini-1.5-flash-latest",
+                    "models/gemini-1.5-pro",
+                    "models/gemini-2.0-flash-exp"
+                ])
 
                 response = None
                 last_error = None
                 
                 for model_name in candidates:
                     try:
+                        print(f"DEBUG: Probando {model_name}...")
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(prompt)
-                        break # Success
+                        if response:
+                            print(f"DEBUG: Éxito con {model_name}")
+                            break # Success
                     except Exception as e:
+                        error_str = str(e).lower()
+                        print(f"DEBUG: Error en {model_name}: {str(e)}")
                         last_error = e
+                        
+                        if "429" in error_str or "quota" in error_str:
+                            print("DEBUG: Detectado límite de cuota. Esperando para rotar...")
+                            time.sleep(2)
                         continue
                 
                 if not response:
@@ -142,5 +157,8 @@ class LLMGenerator:
             return results
             
         except Exception as e:
+            error_msg = str(e)
+            if "limit: 0" in error_msg:
+                error_msg = "CUOTA_DIARIA_AGOTADA: Límite diario de Gemini alcanzado. Intenta mañana o usa OpenAI."
             # Re-raise exception to be handled by UI
-            raise Exception(f"{str(e)}")
+            raise Exception(f"{error_msg}")

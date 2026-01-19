@@ -1,5 +1,11 @@
 import streamlit as st
 import pandas as pd
+import os
+import sys
+
+# Ensure project root is in PYTHONPATH
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 from db.session import SessionLocal
 from db.models import Question
 from core.dedupe import compute_hash, find_duplicates
@@ -10,6 +16,11 @@ import datetime
 st.set_page_config(page_title="Banco Preguntas | DIAN Sim", page_icon="📂", layout="wide")
 load_css()
 render_header(title="Gestión de Preguntas", subtitle="Explora, importa y crea contenido manualmente")
+
+# Marcador de Versión para forzar refresco
+st.sidebar.caption("Versión: 1.2.1 (Fix-Display)")
+if st.sidebar.button("🔄 Forzar Recarga de Datos"):
+    st.rerun()
 
 action = st.radio("Acción", ["Explorar", "Importar CSV", "Crear Manualmente"], horizontal=True)
 st.divider()
@@ -22,7 +33,9 @@ if action == "Explorar":
     if search:
         query = query.filter(Question.stem.ilike(f"%{search}%"))
     
-    questions = query.limit(50).all()
+    questions = query.all()
+    
+    st.info(f"📚 Se encontraron **{len(questions)}** preguntas en el banco.")
     
     data = []
     for q in questions:
@@ -33,7 +46,10 @@ if action == "Explorar":
             "Contenido": q.stem[:80] + "..."
         })
     
-    st.dataframe(pd.DataFrame(data), use_container_width=True)
+    if data:
+        st.dataframe(pd.DataFrame(data), use_container_width=True)
+    else:
+        st.warning("No hay preguntas que coincidan con la búsqueda.")
 
 elif action == "Importar CSV":
     st.info("Sube un CSV con columnas: `track, competency, topic, stem, options_A, options_B, options_C, options_D, correct_key, rationale`")

@@ -1,5 +1,10 @@
 import streamlit as st
 import os
+import sys
+
+# Ensure project root is in PYTHONPATH
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 from db.session import SessionLocal
 from db.models import Question
 from core.generators.llm import LLMGenerator
@@ -70,13 +75,33 @@ with col1:
     if "ai_default_text" in st.session_state and not source_text:
         source_text = st.session_state["ai_default_text"]
         st.info("ℹ️ Se ha cargado el texto del perfil seleccionado automáticamente.")
-        # Clear it so it doesn't stick forever? Maybe keep it.
     
     custom_topic = st.text_input("Etiqueta / Tema para estas preguntas (Ej: Gestor II)", value=default_topic)
     
     num_q = st.slider("Cantidad de preguntas a generar", 1, 10, 3)
     
     generate_btn = st.button("✨ Generar Preguntas", disabled=(not source_text or not api_key), type="primary")
+
+# Helper to get info
+def get_db_info():
+    try:
+        from db.session import SessionLocal, DATABASE_URL
+        db = SessionLocal()
+        count = db.query(Question).count()
+        db.close()
+        db_type = "Cloud (Supabase)" if "supabase" in DATABASE_URL.lower() else "Local (SQLite)"
+        return count, db_type
+    except Exception as e:
+        return 0, f"Error: {e}"
+
+total_q, current_db = get_db_info()
+
+st.sidebar.markdown(f"""
+<div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid var(--dian-red);">
+    <b>Banco:</b> {total_q} Qs<br>
+    <b>DB:</b> {current_db}
+</div>
+""", unsafe_allow_html=True)
 
 if generate_btn:
     with st.spinner("Analizando texto y creando preguntas... (Esto puede tardar unos segundos)"):
@@ -95,61 +120,131 @@ if generate_btn:
                 st.error("No se pudieron generar preguntas. Revisa tu API Key o el formato del texto.")
             else:
                 st.success(f"¡{len(results)} preguntas generadas!")
+                print(f"DEBUG: Generated {len(results)} questions for review.")
         except Exception as e:
             st.error(f"Error: {str(e)}")
+            print(f"DEBUG: Generation ERROR: {e}")
 
-# Create DB Session
-db = SessionLocal()
+# Create DB Session safely for checks
+def check_duplicate(hash_norm):
+    try:
+        from db.session import SessionLocal
+        db = SessionLocal()
+        exists = db.query(Question).filter_by(hash_norm=hash_norm).first()
+        db.close()
+        return exists
+    except Exception as e:
+        print(f"DEBUG: Error checking duplicate: {e}")
+        return None
 
 with col2:
     st.subheader("2. Revisar y Guardar")
     if "generated_questions" in st.session_state and st.session_state["generated_questions"]:
         candidates = st.session_state["generated_questions"]
         
+        # Action Bar
+        col_act1, col_act2 = st.columns([1, 1])
+        with col_act1:
+            if st.button("🗑️ Descartar Todo", use_container_width=True):
+                del st.session_state["generated_questions"]
+                st.rerun()
+        
         indices_to_save = []
         
+        # Display candidates
         for i, q in enumerate(candidates):
             with st.container(border=True):
-                st.write(f"**P{i+1}: {q['stem']}**")
+                # Header with Discard button
+                header_col, discard_col = st.columns([0.85, 0.15])
+                with header_col:
+                    st.write(f"**Pregunta {i+1}**")
+                with discard_col:
+                    if st.button("❌", key=f"discard_{i}", help="Eliminar de esta lista"):
+                        st.session_state["generated_questions"].pop(i)
+                        st.rerun()
+
+                st.write(f"**{q['stem']}**")
                 st.caption(f"{q['track']} | {q['topic']}")
                 
                 # Show Options
                 ops = q.get('options_json', {})
                 if ops:
-                    for k, v in ops.items():
-                        st.text(f"{k}) {v}")
+                    cols_ops = st.columns(2)
+                    for idx, (k, v) in enumerate(ops.items()):
+                        cols_ops[idx % 2].text(f"{k}) {v}")
                 
-                st.info(f"Respuesta Correcta: {q['correct_key']}")
+                st.markdown(f"<span style='color: #4CAF50; font-weight: bold;'>Respuesta Correcta: {q['correct_key']}</span>", unsafe_allow_html=True)
                 
                 if q.get('rationale'):
-                    st.caption(f"**Justificación:** {q['rationale']}")
+                    with st.expander("Ver Justificación"):
+                        st.write(q['rationale'])
                 
                 # Check Duplicates
-                exists = db.query(Question).filter_by(hash_norm=q['hash_norm']).first()
+                exists = check_duplicate(q['hash_norm'])
                 if exists:
-                    st.warning("⚠️ Pregunta muy similar ya existe en el banco.")
+                    st.warning("⚠️ Ya existe en el banco.")
                 else:
-                    if st.checkbox("Guardar esta pregunta", key=f"save_{i}", value=True):
+                    if st.checkbox("Incluir en el guardado", key=f"save_{i}", value=True):
                         indices_to_save.append(i)
         
-        if st.button("💾 Guardar Seleccionadas en Banco", type="primary"):
+        st.divider()
+        if st.button("💾 Guardar Seleccionadas en Banco", type="primary", use_container_width=True, disabled=not indices_to_save):
+            from db.session import SessionLocal
+            import datetime
+            db = SessionLocal()
             saved_count = 0
-            for i in indices_to_save:
-                data = candidates[i]
-                # Re-check existence just in case
-                if not db.query(Question).filter_by(hash_norm=data['hash_norm']).first():
-                    new_q = Question(**data)
-                    db.add(new_q)
-                    saved_count += 1
-            
-            db.commit()
-            st.balloons()
-            st.success(f"Se guardaron {saved_count} preguntas nuevas.")
-            # Clear session
-            del st.session_state["generated_questions"]
-            st.rerun()
+            already_exists = 0
+            try:
+                for i in indices_to_save:
+                    data = candidates[i]
+                    # Final check before insert
+                    existing = db.query(Question).filter_by(hash_norm=data['hash_norm']).first()
+                    if not existing:
+                        # Manual mapping for maximum reliability with SQLAlchemy
+                        new_q = Question(
+                            question_id=str(uuid.uuid4()),
+                            track=data.get('track', 'FUNCIONAL'),
+                            competency=data.get('competency', 'General'),
+                            topic=data.get('topic', 'Generado por IA'),
+                            difficulty=3,
+                            stem=data.get('stem'),
+                            options_json=data.get('options_json'),
+                            correct_key=data.get('correct_key'),
+                            rationale=data.get('rationale'),
+                            source_refs=data.get('source_refs', 'IA'),
+                            created_at=datetime.datetime.utcnow(),
+                            hash_norm=data.get('hash_norm')
+                        )
+                        db.add(new_q)
+                        saved_count += 1
+                        print(f"DEBUG: Saving question to DB: {new_q.stem[:50]}...")
+                    else:
+                        already_exists += 1
+                
+                if saved_count > 0:
+                    db.commit()
+                    st.success(f"✅ ¡Éxito! Se guardaron **{saved_count}** preguntas nuevas en el banco.")
+                    if already_exists > 0:
+                        st.info(f"ℹ️ {already_exists} preguntas fueron omitidas porque ya existían.")
+                    st.balloons()
+                    
+                    # Instead of immediate rerun, clear the candidates list but stay on page to show message
+                    del st.session_state["generated_questions"]
+                    st.info("Carga el banco o inicia un nuevo simulacro para verlas.")
+                    if st.button("Volver a empezar"):
+                        st.rerun()
+                else:
+                    st.warning("⚠️ No se guardaron preguntas nuevas. Todas las seleccionadas ya existen en el banco.")
+                    
+            except Exception as e:
+                db.rollback()
+                st.error(f"❌ Error al guardar en la base de datos: {str(e)}")
+                print(f"CRITICAL ERROR SAVING: {e}")
+            finally:
+                db.close()
             
     else:
         st.info("Las preguntas generadas aparecerán aquí para tu revisión.")
 
-db.close()
+# Final page spacing
+st.write("---")

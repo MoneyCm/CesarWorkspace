@@ -19,15 +19,13 @@ with st.container():
     # Tabs for Mode
     tab_manual, tab_profile = st.tabs(["🎛️ Configuración Manual", "👤 Preparación por Cargo"])
     
-    # Common settings
-    col_config, _ = st.columns([1, 2])
-    with col_config:
-        num_questions = st.slider("Cantidad de preguntas", 5, 50, 10, key="num_q_global")
-
     # --- MANUAL MODE ---
     with tab_manual:
         with st.form("manual_sim_form"):
-            st.markdown("**Filtros Opcionales** (Dejar vacío para incluir todo)")
+            st.markdown("**Configuración de Sesión**")
+            num_questions = st.slider("Cantidad de preguntas", 5, 50, 10, key="num_q_manual")
+            
+            st.markdown("<br>**Filtros Opcionales** (Dejar vacío para incluir todo)", unsafe_allow_html=True)
             
             # Get available options
             db_temp = get_db()
