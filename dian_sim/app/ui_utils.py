@@ -17,22 +17,26 @@ def load_css():
 def render_header(title: str = None, subtitle: str = None):
     """Renderiza el encabezado estándar de DIAN Sim."""
     
-    st.markdown("""
-        <div class="dian-header-container">
-            <div class="dian-logo-text">
-                🇨🇴 DIAN Sim
-            </div>
-            <div style="color: var(--dian-text-muted); font-size: 0.9rem;">
-                Concurso de Méritos 2025
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    col_logo, col_text = st.columns([0.4, 0.6])
     
-    if title:
-        st.markdown(f"<h1>{title}</h1>", unsafe_allow_html=True)
-    
-    if subtitle:
-        st.markdown(f"<p style='color: var(--dian-text-muted); margin-top: -10px;'>{subtitle}</p>", unsafe_allow_html=True)
+    with col_logo:
+        # Logo oficial proporcionado por el usuario
+        logo_path = r"C:\Users\Usuario\.gemini\antigravity\brain\90621891-4da7-41e7-bcd7-7c5a1afffbcc\uploaded_image_1768869746562.png"
+        try:
+            if os.path.exists(logo_path):
+                with open(logo_path, "rb") as f:
+                    image_bytes = f.read()
+                st.image(image_bytes, width=400)
+            else:
+                st.markdown("🇨🇴 **DIAN Sim**")
+        except Exception:
+            st.markdown("🇨🇴 **DIAN Sim**")
+            
+    with col_text:
+        if title:
+            st.markdown(f"<h2 style='margin-bottom: 0;'>{title}</h2>", unsafe_allow_html=True)
+        if subtitle:
+            st.markdown(f"<p style='color: var(--dian-text-muted); font-size: 0.9rem;'>{subtitle}</p>", unsafe_allow_html=True)
     
     st.divider()
 
