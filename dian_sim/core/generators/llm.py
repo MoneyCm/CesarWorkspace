@@ -22,6 +22,12 @@ class LLMGenerator:
         if self.provider == "gemini":
             genai.configure(api_key=api_key)
             
+        if self.provider == "groq":
+            self.openai_client = openai.OpenAI(
+                api_key=api_key,
+                base_url="https://api.groq.com/openai/v1"
+            )
+            
     def generate_from_text(self, text: str, count: int = 5) -> List[dict]:
         # Increase context window to 10000 characters for better results
         context = text[:10000]
@@ -72,6 +78,20 @@ class LLMGenerator:
                     response_format={"type": "json_object"}
                 )
                 content = response.choices[0].message.content
+                
+            elif self.provider == "groq" and self.openai_client:
+                # Groq es extremadamente rápido con Llama 3
+                print(f"DEBUG: Enviando prompt a Groq (Llama 3.3)...")
+                response = self.openai_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "Actúa como un generador de JSON. Responde únicamente con el objeto JSON solicitado."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                content = response.choices[0].message.content
+                print(f"DEBUG: Respuesta de Groq recibida (primeros 50 caracteres): {content[:50]}...")
                 
             elif self.provider == "gemini":
                 # Use absolute resource names for stability

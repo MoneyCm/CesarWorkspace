@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 import sys
+import uuid
+import datetime
 
 # Ensure project root is in PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -10,15 +12,13 @@ from db.session import SessionLocal
 from db.models import Question
 from core.dedupe import compute_hash, find_duplicates
 from ui_utils import load_css, render_header
-import uuid
-import datetime
 
 st.set_page_config(page_title="Banco Preguntas | DIAN Sim", page_icon="📂", layout="wide")
 load_css()
 render_header(title="Gestión de Preguntas", subtitle="Explora, importa y crea contenido manualmente")
 
 # Marcador de Versión para forzar refresco
-st.sidebar.caption("Versión: 1.2.1 (Fix-Display)")
+st.sidebar.caption("Versión: 1.2.5 (Fix-Delete)")
 if st.sidebar.button("🔄 Forzar Recarga de Datos"):
     st.rerun()
 
@@ -37,19 +37,55 @@ if action == "Explorar":
     
     st.info(f"📚 Se encontraron **{len(questions)}** preguntas en el banco.")
     
-    data = []
-    for q in questions:
-        data.append({
-            "ID": str(q.question_id)[:8],
-            "Eje": q.track,
-            "Tema": q.topic,
-            "Contenido": q.stem[:80] + "..."
-        })
-    
-    if data:
-        st.dataframe(pd.DataFrame(data), use_container_width=True)
-    else:
+    if not questions:
         st.warning("No hay preguntas que coincidan con la búsqueda.")
+    else:
+        for q in questions:
+            # Título resumido para el expander
+            display_title = f"[{q.track or 'SIN EJE'}] {q.stem[:80]}..."
+            
+            with st.expander(display_title):
+                st.markdown(f"**Enunciado:**\n{q.stem}")
+                
+                # Mostrar Opciones si existen
+                ops = q.options_json if q.options_json else {}
+                if ops:
+                    st.markdown("**Opciones:**")
+                    cols = st.columns(2)
+                    for i, (key, val) in enumerate(ops.items()):
+                        # Check if val is dict or string (fix potential data issues)
+                        val_str = val if isinstance(val, str) else str(val)
+                        cols[i % 2].markdown(f"**{key})** {val_str}")
+                
+                st.markdown(f"**Respuesta Correcta:** :green[{q.correct_key}]")
+                
+                if q.rationale:
+                    with st.container(border=True):
+                        st.caption("Justificación")
+                        st.write(q.rationale)
+                
+                st.divider()
+                
+                # Barra de acciones (Eliminar)
+                col_info, col_del = st.columns([0.8, 0.2])
+                with col_info:
+                    st.caption(f"Tema: {q.topic or 'General'} | ID: {q.question_id}")
+                
+                with col_del:
+                    with st.popover("🗑️ Eliminar", use_container_width=True):
+                        st.error("¿Estás seguro?")
+                        if st.button("Confirmar Borrado", key=f"del_{q.question_id}", type="primary", use_container_width=True):
+                            try:
+                                # Get a fresh instance from the session to delete
+                                item_to_del = db.query(Question).filter_by(question_id=q.question_id).first()
+                                if item_to_del:
+                                    db.delete(item_to_del)
+                                    db.commit()
+                                    st.toast("Pregunta eliminada", icon="🗑️")
+                                    st.rerun()
+                            except Exception as e:
+                                db.rollback()
+                                st.error(f"Error: {e}")
 
 elif action == "Importar CSV":
     st.info("Sube un CSV con columnas: `track, competency, topic, stem, options_A, options_B, options_C, options_D, correct_key, rationale`")
@@ -79,7 +115,6 @@ elif action == "Importar CSV":
                 if dupes:
                     st.warning(f"Posible duplicado (fila {index}): '{stem}' similar a '{dupes[0][0]}'")
                     count_dupe += 1
-                    # In a real app we might ask for confirmation, here we skip or flag
                     continue
                 
                 ops = {
@@ -94,7 +129,7 @@ elif action == "Importar CSV":
                     track=row['track'],
                     competency=row['competency'],
                     topic=row['topic'],
-                    difficulty=3, # Default
+                    difficulty=3,
                     stem=stem,
                     options_json=ops,
                     correct_key=row['correct_key'],
@@ -143,7 +178,7 @@ elif action == "Crear Manualmente":
                 q = Question(
                     question_id=str(uuid.uuid4()),
                     track=track,
-                    competency="Manual", # Default
+                    competency="Manual",
                     topic=topic,
                     stem=stem,
                     difficulty=3,

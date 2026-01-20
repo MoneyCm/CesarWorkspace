@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import sys
+import uuid
 
 # Ensure project root is in PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -26,7 +27,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 with st.expander("🔐 Configuración de API Key", expanded=True):
-    provider = st.selectbox("Proveedor", ["OpenAI", "Gemini"])
+    provider = st.selectbox("Proveedor", ["OpenAI", "Gemini", "Groq"])
     api_key_env = os.getenv(f"{provider.upper()}_API_KEY")
     api_key = st.text_input(f"API Key {provider}", value=api_key_env if api_key_env else "", type="password")
     
