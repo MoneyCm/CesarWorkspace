@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MapComponent from '../components/Map/MapComponent';
 import { Filter, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 const CATEGORIES = [
     'HOMICIDIO',
@@ -27,7 +28,7 @@ const MapPage = () => {
             if (endDate) params.append('end_date', endDate);
             selectedCategories.forEach(cat => params.append('categories', cat));
 
-            const response = await fetch(`http://localhost:8000/analitica/eventos/geojson?${params.toString()}`);
+            const response = await fetch(`${API_BASE_URL}/analitica/eventos/geojson?${params.toString()}`);
             if (!response.ok) throw new Error('Error al cargar datos del mapa');
 
             const data = await response.json();

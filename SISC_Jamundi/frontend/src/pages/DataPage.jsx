@@ -3,8 +3,10 @@ import { Search, Plus, Edit2, Trash2, Save, X, ChevronLeft, ChevronRight, Upload
 import * as XLSX from 'xlsx';
 import AIAnalysisModal from '../components/AIAnalysisModal';
 
-const API_URL = 'http://localhost:8000/analitica/estadisticas/resumen';
-const INGESTA_URL = 'http://localhost:8000/ingesta/upload';
+import { API_BASE_URL } from '../utils/apiConfig';
+
+const API_URL = `${API_BASE_URL}/analitica/estadisticas/resumen`;
+const INGESTA_URL = `${API_BASE_URL}/ingesta/upload`;
 
 const DataPage = () => {
     const [searchTerm, setSearchTerm] = useState('');

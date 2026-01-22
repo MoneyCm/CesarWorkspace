@@ -4,6 +4,7 @@ import MapComponent from '../components/Map/MapComponent';
 import { kpiData as mockKpiData, crimeTrendData as mockTrendData, crimeDistributionData as mockDistributionData, recentActivity as mockRecentActivity } from '../data/mockData';
 import { transformDashboardData } from '../utils/dataTransformers';
 import { Loader, Download, Calendar } from 'lucide-react';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 const Dashboard = () => {
     const [dashboardData, setDashboardData] = useState({
@@ -21,7 +22,7 @@ const Dashboard = () => {
                 // Simulate network delay for a smoother experience
                 await new Promise(resolve => setTimeout(resolve, 800));
 
-                const response = await fetch('http://localhost:8000/analitica/estadisticas/resumen');
+                const response = await fetch(`${API_BASE_URL}/analitica/estadisticas/resumen`);
                 if (!response.ok) {
                     throw new Error('Usando datos de demostración');
                 }

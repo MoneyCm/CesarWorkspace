@@ -20,8 +20,13 @@ Esta configuración permite que **SISC Jamundí** funcione en cualquier PC sin i
 
 4.  **Acceder al Sistema**:
     Una vez que termine de cargar (verás una terminal que dice `npm install` terminado):
-    - **Frontend**: Te aparecerá un mensaje flotante para "Open in Browser" en el puerto **3000**.
-    - **Swagger API**: Disponible en el puerto **8000**.
+    - **Frontend**: Te aparecerá un mensaje flotante para "Open in Browser" en el puerto **5173** (o 3000).
+    - **IMPORTANTE (Visibilidad del Puerto)**: Para que el sistema funcione, ve a la pestaña **"Ports"** abajo (al lado de la terminal), busca el puerto **8000**, haz clic derecho y selecciona **Port Visibility > Public**. Sin esto, la aplicación no podrá leer los datos.
+
+### Qué hacer si sale "Error al cargar":
+1.  Verifica que el **Backend** esté corriendo en una terminal (`python backend/main.py`).
+2.  Asegúrate de haber hecho `git pull origin main` en la terminal para tener los últimos arreglos.
+3.  Confirma que el puerto **8000** esté en modo **Public**.
 
 ### Ventajas:
 - **Gratis**: Incluido en las horas gratuitas de GitHub.

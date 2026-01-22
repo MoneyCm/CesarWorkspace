@@ -4,6 +4,7 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Download, Calendar, Filter } from 'lucide-react';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 const ReportsPage = () => {
     // Datos simulados
@@ -36,7 +37,7 @@ const ReportsPage = () => {
 
     const handleExportPDF = async () => {
         try {
-            window.open('http://localhost:8000/reportes/generar-boletin', '_blank');
+            window.open(`${API_BASE_URL}/reportes/generar-boletin`, '_blank');
         } catch (err) {
             alert('Error al generar el PDF. Asegúrate de que el backend esté activo.');
         }
