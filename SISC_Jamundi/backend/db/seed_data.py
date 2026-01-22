@@ -1,3 +1,9 @@
+import os
+import sys
+
+# Añadir el directorio actual al path para que las importaciones funcionen
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from db.models import SessionLocal, Event, EventType, Role, User
