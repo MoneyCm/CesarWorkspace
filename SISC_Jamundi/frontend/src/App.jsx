@@ -6,7 +6,7 @@ import MapPage from './pages/MapPage';
 import ReportsPage from './pages/ReportsPage';
 import DataPage from './pages/DataPage';
 
-const App: React.FC = () => {
+const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
 
   const renderContent = () => {
@@ -32,7 +32,5 @@ const App: React.FC = () => {
     </Layout>
   );
 };
-
-export default App;
 
 export default App;
