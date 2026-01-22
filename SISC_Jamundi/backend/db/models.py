@@ -6,7 +6,7 @@ import uuid
 import os
 
 # Configuración de la URL de la base de datos (usando variables de entorno o valores por defecto para desarrollo)
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:admin123@localhost:5432/sisc_jamundi")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://sisc_user:sisc_password@localhost:5432/sisc_jamundi")
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

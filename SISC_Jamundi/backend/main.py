@@ -11,10 +11,14 @@ app = FastAPI(title="SISC Jamundí API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False, # Cambiado a False para permitir "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def read_root():
+    return {"message": "SISC Jamundí API is running"}
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(analitica.router, prefix="/analitica", tags=["analitica"])
