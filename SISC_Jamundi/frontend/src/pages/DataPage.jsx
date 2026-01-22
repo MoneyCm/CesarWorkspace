@@ -85,6 +85,8 @@ const DataPage = () => {
         setFormData({ fecha: '', tipo: '', barrio: '', descripcion: '', estado: 'Abierto' });
     };
 
+    const [uploadReport, setUploadReport] = useState(null);
+
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -94,19 +96,22 @@ const DataPage = () => {
 
         try {
             setLoading(true);
+            setUploadReport(null);
             const response = await fetch(INGESTA_URL, {
                 method: 'POST',
                 body: formDataFile
             });
 
-            if (!response.ok) throw new Error('Error en la carga');
             const result = await response.json();
-            alert(result.message);
+            if (!response.ok) throw new Error(result.detail || 'Error en la carga');
+
+            setUploadReport(result.report);
             fetchIncidents();
         } catch (err) {
             alert('Error al cargar: ' + err.message);
         } finally {
             setLoading(false);
+            e.target.value = ''; // Reset input
         }
     };
 
@@ -149,6 +154,42 @@ const DataPage = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
+
+            {/* Reporte de Carga */}
+            {uploadReport && (
+                <div className={`p-4 rounded-md border ${uploadReport.error_count > 0 ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-bold text-slate-800 flex items-center">
+                            <Upload size={18} className="mr-2" />
+                            Reporte de Ingesta
+                        </h3>
+                        <button onClick={() => setUploadReport(null)} className="text-slate-400 hover:text-slate-600">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <p className="text-sm text-slate-700">
+                        Procesados <strong>{uploadReport.total}</strong> registros:
+                        <span className="text-green-600 mx-1">{uploadReport.success_count} exitosos</span> y
+                        <span className="text-red-600 mx-1">{uploadReport.error_count} errores</span>.
+                    </p>
+
+                    {uploadReport.errors.length > 0 && (
+                        <div className="mt-3 overflow-hidden border border-red-100 rounded">
+                            <div className="bg-red-50 px-3 py-1 text-[10px] uppercase font-bold text-red-400 border-b border-red-100">
+                                Errores Detallados
+                            </div>
+                            <div className="max-h-32 overflow-y-auto bg-white p-2 space-y-1">
+                                {uploadReport.errors.map((err, i) => (
+                                    <div key={i} className="text-xs text-red-600 flex gap-2">
+                                        <span className="font-mono font-bold bg-red-50 px-1 rounded">Fila {err.fila}:</span>
+                                        <span>{err.error}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Mensaje de Error */}
             {error && (

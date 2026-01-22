@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 import uvicorn
 
-from api import analitica, ingesta
+from api import analitica, ingesta, auth, reportes
 
 app = FastAPI(title="SISC Jamundí API", version="0.1.0")
 
@@ -16,18 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(analitica.router, prefix="/analitica", tags=["analitica"])
-
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "Bienvenido al Sistema de Información para la Seguridad y la Convivencia (SISC) Jamundí"}
-
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
-
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(analitica.router, prefix="/analitica", tags=["analitica"])
 app.include_router(ingesta.router, prefix="/ingesta", tags=["ingesta"])
+app.include_router(reportes.router, prefix="/reportes", tags=["reportes"])
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

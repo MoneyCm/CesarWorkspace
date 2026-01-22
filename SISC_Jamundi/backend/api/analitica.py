@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from db.models import get_db, Event, EventType
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 router = APIRouter()
 
@@ -75,12 +75,12 @@ def get_tasa_homicidios(
 def get_eventos_geojson(
     start_date: Optional[date] = None, 
     end_date: Optional[date] = None, 
+    categories: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db)
 ):
     """
-    Retorna los eventos en formato GeoJSON para visualización cartográfica.
+    Retorna los eventos en formato GeoJSON para visualización cartográfica con filtros.
     """
-    # Consulta SQL cruda para manejar la geometría de PostGIS sin GeoAlchemy2
     sql = """
         SELECT 
             e.id, 
@@ -103,6 +103,10 @@ def get_eventos_geojson(
     if end_date:
         sql += " AND e.occurrence_date <= :end_date"
         params["end_date"] = end_date
+    
+    if categories:
+        sql += " AND et.category IN :categories"
+        params["categories"] = tuple(categories)
         
     result = db.execute(func.text(sql), params).fetchall()
     

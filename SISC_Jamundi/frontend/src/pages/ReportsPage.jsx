@@ -34,6 +34,14 @@ const ReportsPage = () => {
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#FF4444'];
 
+    const handleExportPDF = async () => {
+        try {
+            window.open('http://localhost:8000/reportes/generar-boletin', '_blank');
+        } catch (err) {
+            alert('Error al generar el PDF. Asegúrate de que el backend esté activo.');
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Encabezado y Filtros */}
@@ -47,7 +55,10 @@ const ReportsPage = () => {
                         <Calendar size={18} />
                         <span>Últimos 6 meses</span>
                     </button>
-                    <button className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90">
+                    <button
+                        onClick={handleExportPDF}
+                        className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+                    >
                         <Download size={18} />
                         <span>Exportar PDF</span>
                     </button>
