@@ -93,33 +93,64 @@ const DataPage = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const formDataFile = new FormData();
-        formDataFile.append('file', file);
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const rawData = XLSX.utils.sheet_to_json(ws);
 
+                // Normalizar columnas a minúsculas para el análisis
+                const normalizedData = rawData.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => {
+                        newRow[key.toLowerCase().trim()] = row[key];
+                    });
+                    // Mapear campos comunes si tienen nombres diferentes
+                    return {
+                        fecha: newRow.fecha,
+                        tipo: newRow.delito || newRow.tipo,
+                        barrio: newRow.barrio,
+                        descripcion: newRow.descripcion || newRow.detalle,
+                        latitud: newRow.latitud,
+                        longitud: newRow.longitud,
+                        hora: newRow.hora || '00:00'
+                    };
+                });
+
+                setPendingImportData(normalizedData);
+                setIsAIModalOpen(true);
+            } catch (err) {
+                alert('Error leyendo el archivo: ' + err.message);
+            }
+        };
+        reader.readAsBinaryString(file);
+        e.target.value = ''; // Reset input
+    };
+
+    const handleConfirmImport = async (analyzedData) => {
         try {
             setLoading(true);
-            setUploadReport(null);
-            const response = await fetch(INGESTA_URL, {
+            setIsAIModalOpen(false);
+
+            const response = await fetch(`${API_BASE_URL}/ingesta/bulk`, {
                 method: 'POST',
-                body: formDataFile
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(analyzedData)
             });
 
             const result = await response.json();
-            if (!response.ok) throw new Error(result.detail || 'Error en la carga');
+            if (!response.ok) throw new Error(result.detail || 'Error en la integración');
 
             setUploadReport(result.report);
             fetchIncidents();
         } catch (err) {
-            alert('Error al cargar: ' + err.message);
+            alert('Error en la integración final: ' + err.message);
         } finally {
             setLoading(false);
-            e.target.value = ''; // Reset input
         }
-    };
-
-    const handleConfirmImport = async (analyzedData) => {
-        // En este MVP la ingesta se hace directamente por archivo
-        setIsAIModalOpen(false);
     };
 
     return (

@@ -78,37 +78,26 @@ def get_eventos_geojson(
     categories: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """
-    Retorna los eventos en formato GeoJSON para visualización cartográfica con filtros.
-    """
-    sql = """
-        SELECT 
-            e.id, 
-            e.occurrence_date, 
-            e.barrio,
-            e.descripcion,
-            et.category, 
-            et.subcategory,
-            ST_X(e.location_geom) as lng, 
-            ST_Y(e.location_geom) as lat
-        FROM events e
-        JOIN event_types et ON e.event_type_id = et.id
-        WHERE e.location_geom IS NOT NULL
-    """
+    query = db.query(
+        Event.id,
+        Event.occurrence_date,
+        Event.barrio,
+        Event.descripcion,
+        EventType.category,
+        EventType.subcategory,
+        func.ST_X(Event.location_geom).label('lng'),
+        func.ST_Y(Event.location_geom).label('lat')
+    ).join(EventType).filter(Event.location_geom != None)
     
-    params = {}
     if start_date:
-        sql += " AND e.occurrence_date >= :start_date"
-        params["start_date"] = start_date
+        query = query.filter(Event.occurrence_date >= start_date)
     if end_date:
-        sql += " AND e.occurrence_date <= :end_date"
-        params["end_date"] = end_date
+        query = query.filter(Event.occurrence_date <= end_date)
     
     if categories:
-        sql += " AND et.category IN :categories"
-        params["categories"] = tuple(categories)
+        query = query.filter(EventType.category.in_(categories))
         
-    result = db.execute(func.text(sql), params).fetchall()
+    result = query.all()
     
     features = []
     for row in result:

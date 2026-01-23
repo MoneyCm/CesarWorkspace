@@ -25,8 +25,8 @@ export const analyzeData = async (data) => {
 
         // 2. Validate/Fix Type
         const validTypes = [
-            'Homicidio', 'Hurto a Personas', 'Hurto a Comercio',
-            'Lesiones Personales', 'Violencia Intrafamiliar', 'Riña'
+            'HOMICIDIO', 'HURTO A PERSONAS', 'HURTO A COMERCIO',
+            'LESIONES PERSONALES', 'VIOLENCIA INTRAFAMILIAR', 'RIÑA'
         ];
 
         if (!validTypes.includes(item.tipo)) {

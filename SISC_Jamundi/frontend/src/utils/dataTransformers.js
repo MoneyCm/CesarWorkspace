@@ -14,12 +14,9 @@ export const transformDashboardData = (incidents) => {
     // 1. KPIs
     const totalIncidents = incidents.length;
 
-    // Helper to count by type
-    const countByType = (type) => incidents.filter(i => i.tipo === type).length;
-
-    const homicidios = countByType('Homicidio');
-    const hurtos = countByType('Hurto a Personas') + countByType('Hurto a Comercio');
-    const vif = countByType('Violencia Intrafamiliar');
+    const homicidios = countByType('HOMICIDIO');
+    const hurtos = countByType('HURTO A PERSONAS') + countByType('HURTO A COMERCIO');
+    const vif = countByType('VIOLENCIA INTRAFAMILIAR');
 
     // Mocking trends for now as we might not have enough historical data in the MVP
     const kpiData = [
@@ -45,9 +42,9 @@ export const transformDashboardData = (incidents) => {
 
         return {
             name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-            homicidios: monthIncidents.filter(i => i.tipo === 'Homicidio').length,
-            hurtos: monthIncidents.filter(i => i.tipo.includes('Hurto')).length,
-            vif: monthIncidents.filter(i => i.tipo === 'Violencia Intrafamiliar').length
+            homicidios: monthIncidents.filter(i => i.tipo === 'HOMICIDIO').length,
+            hurtos: monthIncidents.filter(i => i.tipo.includes('HURTO')).length,
+            vif: monthIncidents.filter(i => i.tipo === 'VIOLENCIA INTRAFAMILIAR').length
         };
     });
 

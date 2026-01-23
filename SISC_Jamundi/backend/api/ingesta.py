@@ -106,3 +106,65 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error fatal procesando el archivo: {str(e)}")
+
+@router.post("/bulk")
+async def bulk_upload(data: List[dict], db: Session = Depends(get_db)):
+    """
+    Recibe una lista de eventos pre-analizados por la IA en JSON y los inserta.
+    """
+    report = {
+        "total": len(data),
+        "success_count": 0,
+        "error_count": 0,
+        "errors": []
+    }
+
+    for index, item in enumerate(data):
+        try:
+            # 1. Validar Categoría
+            delito_nombre = str(item.get('tipo', '')).upper().strip()
+            event_type = db.query(EventType).filter(EventType.category == delito_nombre).first()
+            if not event_type:
+                event_type = EventType(category=delito_nombre, is_delicto=True)
+                db.add(event_type)
+                db.flush()
+
+            # 2. Fecha y Hora
+            occ_date = pd.to_datetime(item['fecha']).date()
+            # Si no hay hora, usar medianoche por defecto
+            occ_time = pd.to_datetime(item.get('hora', '00:00')).time()
+
+            # 3. Geometría (Lat/Lng) - Usar valores por defecto si faltan para evitar fallo total
+            lat = float(item.get('latitud', 3.26)) # Centro de Jamundí
+            lng = float(item.get('longitud', -76.53))
+
+            # 4. Crear Evento
+            new_event = Event(
+                external_id=str(item.get('id_externo', uuid.uuid4())),
+                event_type_id=event_type.id,
+                occurrence_date=occ_date,
+                occurrence_time=occ_time,
+                barrio=str(item.get('barrio', 'Sin especificar')),
+                descripcion=str(item.get('descripcion', '')),
+                estado=str(item.get('estado', 'Abierto'))
+            )
+            db.add(new_event)
+            db.flush()
+
+            # 5. PostGIS
+            db.execute(
+                func.text("UPDATE events SET location_geom = ST_SetSRID(ST_Point(:lng, :lat), 4326) WHERE id = :id"),
+                {"lng": lng, "lat": lat, "id": new_event.id}
+            )
+            report["success_count"] += 1
+
+        except Exception as e:
+            report["error_count"] += 1
+            report["errors"].append({"fila": index + 1, "error": str(e)})
+
+    db.commit()
+    return {
+        "status": "success" if report["error_count"] == 0 else "partial_success",
+        "message": f"Carga masiva completada: {report['success_count']} registros integrados.",
+        "report": report
+    }
