@@ -1,4 +1,14 @@
 import streamlit as st
+import os, sys
+
+# Add root to python path to import modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+import pandas as pd
+
+# Add root to python path to import modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 from db.session import SessionLocal
 from db.models import Question, Skill
 from core.adaptive import select_questions_for_simulation
@@ -23,26 +33,33 @@ with st.container():
     with tab_manual:
         with st.form("manual_sim_form"):
             st.markdown("**Configuración de Sesión**")
-            num_questions = st.slider("Cantidad de preguntas", 5, 50, 10, key="num_q_manual")
+            num_questions = st.slider("Cantidad de preguntas", 5, 200, 20, key="num_q_manual")
             
             st.markdown("<br>**Filtros Opcionales** (Dejar vacío para incluir todo)", unsafe_allow_html=True)
             
-            # Get available options
-            db_temp = get_db()
-            all_tracks = [t[0] for t in db_temp.query(Question.track).distinct().all()]
-            all_competencies = [t[0] for t in db_temp.query(Question.competency).distinct().all()]
-            all_topics = [t[0] for t in db_temp.query(Question.topic).distinct().all()]
-            db_temp.close()
+            # Get available options with error handling
+            try:
+                db_temp = get_db()
+                all_tracks = [t[0] for t in db_temp.query(Question.track).distinct().all() if t[0]]
+                all_competencies = [t[0] for t in db_temp.query(Question.competency).distinct().all() if t[0]]
+                all_topics = [t[0] for t in db_temp.query(Question.topic).distinct().all() if t[0]]
+                db_temp.close()
+            except Exception as e:
+                st.error(f"Error de conexión con la base de datos: {e}")
+                st.info("Intenta recargar la página o verifica tu conexión a internet.")
+                all_tracks, all_competencies, all_topics = [], [], []
 
             col1, col2 = st.columns(2)
             with col1:
                 track_filter = st.multiselect("Eje (Track)", sorted(all_tracks))
+                difficulty_filter = st.multiselect("Dificultad", [1, 2, 3], format_func=lambda x: {1: "🟢 Básico", 2: "🟡 Intermedio", 3: "🔴 Avanzado"}[x])
             with col2:
                 competency_filter = st.multiselect("Competencia", sorted(all_competencies))
             
             topic_filter = st.multiselect("Tema Específico", sorted(all_topics))
             
             st.markdown("<br>", unsafe_allow_html=True)
+            only_situational_manual = st.toggle("Solo preguntas situacionales (Nuevas)", value=True, help="Filtra para mostrar solo preguntas que plantean casos prácticos.", key="only_sit_manual")
             submitted_manual = st.form_submit_button("🚀 Iniciar Simulacro Manual", type="primary")
 
     # --- PROFILE MODE ---
@@ -63,21 +80,36 @@ with st.container():
                 st.write("**Competencias Comportamentales:**")
                 st.write(", ".join(profile_data["behavioral_competencies"]))
             
+            st.markdown("---")
+            col_p1, col_p2 = st.columns([1, 1])
+            with col_p1:
+                num_questions_profile = st.slider("Cantidad de preguntas", 5, 200, 20, key="num_q_profile")
+            with col_p2:
+                difficulty_profile = st.multiselect("Nivel de Dificultad", [1, 2, 3], default=[1, 2, 3], format_func=lambda x: {1: "🟢 Básico", 2: "🟡 Intermedio", 3: "🔴 Avanzado"}[x], key="diff_profile")
+
             # Check availability
             db_chk = get_db()
-            available_count = db_chk.query(Question).filter(Question.topic.in_(profile_topics)).count()
+            query_chk = db_chk.query(Question).filter(Question.topic.in_(profile_topics))
+            if difficulty_profile:
+                query_chk = query_chk.filter(Question.difficulty.in_(difficulty_profile))
+            available_count = query_chk.count()
             db_chk.close()
             
             if available_count < 5:
                 st.warning(f"⚠️ Solo hay {available_count} preguntas disponibles para estos temas en tu banco local.")
                 st.markdown("Recomendación: Usa el **Generador IA** para crear preguntas específicas para este cargo.")
-                if st.button("Ir al Generador IA con este Perfil"):
+                if st.button("Ir al Generador IA (Preguntas Situacionales)"):
                     st.session_state["ai_default_text"] = profile_data["raw_text"]
                     st.session_state["ai_default_topic"] = selected_profile_name
+                    # Pre-select difficulty if only one is chosen, otherwise default to Intermedio
+                    st.session_state["ai_default_diff"] = difficulty_profile[0] if len(difficulty_profile) == 1 else 2
                     st.switch_page("pages/4_Generador_IA.py")
             else:
                 st.success(f"✅ Hay {available_count} preguntas disponibles para este perfil.")
         
+        st.markdown("---")
+        only_situational = st.toggle("Solo preguntas situacionales (Nuevas)", value=True, help="Filtra para mostrar solo preguntas que plantean casos prácticos generados con el nuevo sistema.")
+
         if st.button("🚀 Iniciar Simulacro por Perfil", type="primary", disabled=(available_count == 0)):
              submitted_profile = True
         else:
@@ -94,7 +126,9 @@ if submitted_manual:
     final_query_filters = {
         "tracks": track_filter,
         "competencies": competency_filter,
-        "topics": topic_filter
+        "topics": topic_filter,
+        "difficulties": difficulty_filter,
+        "only_situational": only_situational_manual
     }
 
 if submitted_profile and selected_profile_name:
@@ -103,8 +137,11 @@ if submitted_profile and selected_profile_name:
     # Or broad filter by track? Better specific topics + competencies
     profile_topics = get_profile_topics(selected_profile_name)
     final_query_filters = {
-        "topics": profile_topics
+        "topics": profile_topics,
+        "difficulties": difficulty_profile,
+        "only_situational": only_situational
     }
+    num_questions = num_questions_profile
 
 if run_sim:
     db = get_db()
@@ -118,6 +155,10 @@ if run_sim:
         query = query.filter(Question.competency.in_(final_query_filters["competencies"]))
     if final_query_filters.get("topics"):
         query = query.filter(Question.topic.in_(final_query_filters["topics"]))
+    if final_query_filters.get("difficulties"):
+        query = query.filter(Question.difficulty.in_(final_query_filters["difficulties"]))
+    if final_query_filters.get("only_situational"):
+        query = query.filter(Question.stem.ilike("%SITUACIÓN%"))
     
     all_candidates = query.all()
     

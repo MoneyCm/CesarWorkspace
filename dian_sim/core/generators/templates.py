@@ -28,32 +28,22 @@ TOPICS = {
 
 TEMPLATES = [
     {
-        "text": "En el contexto de {topic}, ¿cuál de las siguientes situaciones describe mejor el concepto de {concept}?",
+        "text": "SITUACIÓN: Un ciudadano consulta sobre {topic} en relación a {concept}. Usted, como funcionario encargado, identifica una posible inconsistencia. PREGUNTA: ¿Cuál es la acción correcta según el procedimiento establecido?",
         "options": [
-            "Definición precisa y ajustada a la normativa vigente.",
-            "Definición vaga que podría confundirse con otros términos.",
-            "Definición que corresponde a un concepto opuesto.",
-            "Afirmación que no tiene relevancia directa con el tema."
+            "Aplicar la normativa específica vigente para el caso de {concept}.",
+            "Solicitar una aclaración informal al ciudadano sin registro.",
+            "Ignorar la inconsistencia y proceder con el trámite estándar.",
+            "Remitir el caso a otra dependencia sin análisis previo."
         ],
         "correct": "A"
     },
     {
-        "text": "Un funcionario de la DIAN se enfrenta a un caso de {topic}. Según la normativa vigente, la acción prioritaria debería ser:",
+        "text": "SITUACIÓN: Durante una auditoría interna de {topic}, se detecta que no se aplicó correctamente el concepto de {concept}. PREGUNTA: ¿Qué medida de corrección es la más adecuada?",
         "options": [
-            "Realizar el procedimiento estándar establecido en la ley.",
-            "Consultar informalmente sin dejar registro escrito.",
-            "Proponer una solución alternativa no regulada.",
-            "Ignorar el caso hasta recibir instrucciones superiores."
-        ],
-        "correct": "A"
-    },
-    {
-        "text": "Para asegurar {topic} de manera efectiva en un equipo de trabajo, ¿qué estrategia es la más adecuada?",
-        "options": [
-            "Implementar mecanismos de seguimiento y retroalimentación constante.",
-            "Imponer reglas estrictas sin consultar al equipo.",
-            "Dejar que cada funcionario actúe según su criterio personal.",
-            "Delegar la responsabilidad sin supervisión alguna."
+            "Iniciar el proceso de corrección y ajuste según el estatuto.",
+            "Dejar constancia del error pero no realizar cambios retroactivos.",
+            "Solicitar una opinión externa antes de actuar.",
+            "Esperar la notificación oficial de sanción para responder."
         ],
         "correct": "A"
     }
@@ -137,7 +127,7 @@ def generate_dummy_questions(count: int = 50) -> list[dict]:
             "track": track,
             "competency": competency,
             "topic": topic,
-            "difficulty": random.randint(1, 5),
+            "difficulty": random.randint(1, 3),
             "stem": stem,
             "options_json": options_map,
             "correct_key": correct_key,

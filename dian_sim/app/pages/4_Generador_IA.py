@@ -27,11 +27,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 with st.expander("🔐 Configuración de API Key", expanded=True):
-    provider = st.selectbox("Proveedor", ["OpenAI", "Gemini", "Groq"])
+    col_prov, col_model = st.columns(2)
+    with col_prov:
+        provider = st.selectbox("Proveedor", ["OpenAI", "Gemini", "Groq"])
+    
+    with col_model:
+        models_map = {
+            "OpenAI": ["gpt-4o-mini", "gpt-4o"],
+            "Gemini": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+            "Groq": ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"]
+        }
+        model_name = st.selectbox("Modelo", models_map.get(provider, ["default"]))
+        st.session_state["current_model"] = model_name
+        st.session_state["current_provider"] = provider
+
     api_key_env = os.getenv(f"{provider.upper()}_API_KEY")
     api_key = st.text_input(f"API Key {provider}", value=api_key_env if api_key_env else "", type="password")
     
     st.caption("No guardamos tu llave. Se usa solo para esta sesión.")
+    if provider == "Groq":
+        st.warning("⚠️ **Nota sobre Groq:** El nivel gratuito de Groq tiene límites diarios estrictos (TPD). Si recibes un error, te recomendamos usar **Gemini** (Google), que es más estable y generoso en sus cuotas gratuitas.")
 
 st.divider()
 
@@ -79,7 +94,17 @@ with col1:
     
     custom_topic = st.text_input("Etiqueta / Tema para estas preguntas (Ej: Gestor II)", value=default_topic)
     
-    num_q = st.slider("Cantidad de preguntas a generar", 1, 10, 3)
+    num_q = st.slider("Cantidad de preguntas a generar", 1, 200, 10)
+    
+    difficulty_p_val = st.session_state.get("ai_default_diff", 2)
+    inv_difficulty_map = {1: "Básico", 2: "Intermedio", 3: "Avanzado"}
+    
+    difficulty_map = {"Básico": 1, "Intermedio": 2, "Avanzado": 3}
+    difficulty_label = st.select_slider("Nivel de dificultad", options=list(difficulty_map.keys()), value=inv_difficulty_map.get(difficulty_p_val, "Intermedio"))
+    difficulty_value = difficulty_map[difficulty_label]
+    
+    st.info("💡 Todas las preguntas generadas serán **SITUACIONALES** (casos prácticos) para cumplir con el estándar de evaluación de la DIAN.")
+    st.caption("💎 **Tip Pro:** Si usas Gemini Free Tier, intenta generar lotes de **5 a 10 preguntas** a la vez para evitar bloqueos por cuota de tokens.")
     
     generate_btn = st.button("✨ Generar Preguntas", disabled=(not source_text or not api_key), type="primary")
 
@@ -107,8 +132,8 @@ st.sidebar.markdown(f"""
 if generate_btn:
     with st.spinner("Analizando texto y creando preguntas... (Esto puede tardar unos segundos)"):
         try:
-            generator = LLMGenerator(provider, api_key)
-            results = generator.generate_from_text(source_text, num_q)
+            generator = LLMGenerator(provider, api_key, model_name=model_name)
+            results = generator.generate_from_text(source_text, num_q, difficulty=difficulty_value)
             
             # Apply Custom Topic Override
             if results and custom_topic.strip():
@@ -165,7 +190,10 @@ with col2:
                         st.rerun()
 
                 st.write(f"**{q['stem']}**")
-                st.caption(f"{q['track']} | {q['topic']}")
+                
+                diff_labels = {1: "🟢 Básico", 2: "🟡 Intermedio", 3: "🔴 Avanzado"}
+                diff_tag = diff_labels.get(q.get('difficulty', 2), "Intermedio")
+                st.caption(f"{q['track']} | {q['topic']} | Dificultad: {diff_tag}")
                 
                 # Show Options
                 ops = q.get('options_json', {})
@@ -196,10 +224,18 @@ with col2:
             saved_count = 0
             already_exists = 0
             try:
+                local_seen_hashes = set()
                 for i in indices_to_save:
                     data = candidates[i]
-                    # Final check before insert
-                    existing = db.query(Question).filter_by(hash_norm=data['hash_norm']).first()
+                    h = data.get('hash_norm')
+                    
+                    # Evitar duplicados dentro del mismo lote que estamos guardando
+                    if h in local_seen_hashes:
+                        already_exists += 1
+                        continue
+                    
+                    # Final check before insert against DB
+                    existing = db.query(Question).filter_by(hash_norm=h).first()
                     if not existing:
                         # Manual mapping for maximum reliability with SQLAlchemy
                         new_q = Question(
@@ -207,16 +243,17 @@ with col2:
                             track=data.get('track', 'FUNCIONAL'),
                             competency=data.get('competency', 'General'),
                             topic=data.get('topic', 'Generado por IA'),
-                            difficulty=3,
+                            difficulty=data.get('difficulty', 2),
                             stem=data.get('stem'),
                             options_json=data.get('options_json'),
                             correct_key=data.get('correct_key'),
                             rationale=data.get('rationale'),
                             source_refs=data.get('source_refs', 'IA'),
                             created_at=datetime.datetime.utcnow(),
-                            hash_norm=data.get('hash_norm')
+                            hash_norm=h
                         )
                         db.add(new_q)
+                        local_seen_hashes.add(h)
                         saved_count += 1
                         print(f"DEBUG: Saving question to DB: {new_q.stem[:50]}...")
                     else:

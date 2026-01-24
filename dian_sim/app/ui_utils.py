@@ -20,15 +20,15 @@ def render_header(title: str = None, subtitle: str = None):
     col_logo, col_text = st.columns([0.4, 0.6])
     
     with col_logo:
-        # Logo oficial proporcionado por el usuario
-        logo_path = r"C:\Users\Usuario\.gemini\antigravity\brain\90621891-4da7-41e7-bcd7-7c5a1afffbcc\uploaded_image_1768869746562.png"
+        # Relativizado para el despliegue
+        # El logo debe estar en app/assets/logo.png
+        logo_path = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
         try:
             if os.path.exists(logo_path):
-                with open(logo_path, "rb") as f:
-                    image_bytes = f.read()
-                st.image(image_bytes, width=400)
+                # Using st.image directly for reliability
+                st.image(logo_path, width=380)
             else:
-                st.markdown("🇨🇴 **DIAN Sim**")
+                st.markdown("<h1 style='color: var(--dian-red); font-size: 3rem; margin:0;'>DIAN Sim</h1>", unsafe_allow_html=True)
         except Exception:
             st.markdown("🇨🇴 **DIAN Sim**")
             
@@ -51,9 +51,9 @@ def card_container(key=None):
 def metric_card(label: str, value: str, sublabel: str = ""):
     """Renderiza una tarjeta de métrica personalizada."""
     st.markdown(f"""
-    <div class="dian-card">
-        <div class="dian-card-header">{label}</div>
-        <div class="dian-stat">{value}</div>
-        <div class="dian-stat-label">{sublabel}</div>
+    <div class="dian-card" style="text-align: center; padding: 1.5rem;">
+        <div class="dian-card-header" style="justify-content: center;">{label}</div>
+        <div style="font-size: 2.2rem; font-weight: 800; color: var(--text-main); margin: 10px 0;">{value}</div>
+        <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">{sublabel}</div>
     </div>
     """, unsafe_allow_html=True)

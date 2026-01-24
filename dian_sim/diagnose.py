@@ -9,7 +9,10 @@ try:
     from db.session import SessionLocal
     from db.models import Question
     from core.generators.llm import LLMGenerator
-    print("✅ Imports successful")
+    from core.gamification import get_rank_info
+    import plotly.express as px
+    import plotly.graph_objects as go
+    print("✅ Imports successful (including get_rank_info and Plotly)")
 except Exception as e:
     print(f"❌ Import error: {e}")
     sys.exit(1)

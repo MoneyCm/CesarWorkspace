@@ -1,11 +1,22 @@
 import streamlit as st
+import os, sys, datetime
+
+# Add root to python path to import modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+# The instruction implies adding this block, but it already exists.
+# If `import pandas as pd` was intended to be added, it would go here.
+# For now, I will assume the instruction was to ensure the existing block is present.
+
 from db.session import SessionLocal
 from db.models import Question
 from ui_utils import load_css, render_header, metric_card
+from core.pdf_utils import generate_exam_pdf
 
 st.set_page_config(page_title="Resultados | DIAN Sim", page_icon="📊", layout="wide")
 load_css()
 render_header(title="Resultados del Simulacro", subtitle="Análisis de tu desempeño reciente")
+# v2.5.1 - Fix PDF Binary
 
 if "last_results" not in st.session_state:
     st.info("No hay resultados recientes para mostrar.")
@@ -15,14 +26,61 @@ if "last_results" not in st.session_state:
     st.stop()
 
 data = st.session_state["last_results"]
+
+# --- v2.5 CELEBRATION LOGIC ---
+if data.get("new_achievements"):
+    st.balloons()
+    for ach in data["new_achievements"]:
+        st.success(f"🏆 ¡LOGRO DESBLOQUEADO: **{ach}**!")
+
+if data.get("rank_up"):
+    st.snow()
+    st.warning(f"👑 ¡ASCENSO DE RANGO! Ahora eres: **{data['rank_up']}**")
 total = data["total"]
 correct = data["correct"]
 score = (correct / total) * 100
 
-# Metric Card
-col1, col2, col3 = st.columns([1, 2, 1])
+# Metric Cards
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    metric_card("Puntaje Global", f"{score:.1f}%", f"{correct} de {total}")
 with col2:
-    metric_card("Puntaje Global", f"{score:.1f}%", f"{correct} de {total} respuestas correctas")
+    metric_card("Puntos Ganados", f"+{data.get('points_earned', 0)}", "¡Buen trabajo!")
+with col3:
+    metric_card("Racha Actual", f"{data.get('new_streak', 0)}🔥", "Días seguidos")
+with col4:
+    metric_card("Tiempo", "N/A", "Minutos") # Pendiente cálculo exacto si se desea
+
+
+st.divider()
+
+# --- v2.5 PDF DOWNLOAD BUTTON ---
+st.subheader("📄 Reporte de Desempeño")
+db = SessionLocal()
+q_ids = data["q_ids"]
+answers = st.session_state.get("answers", {})
+
+details = []
+for qid in q_ids:
+    q = db.query(Question).get(qid)
+    details.append({
+        "stem": q.stem,
+        "user_ans": answers.get(qid, "N/A"),
+        "correct_key": q.correct_key,
+        "rationale": q.rationale
+    })
+
+try:
+    pdf_bytes = generate_exam_pdf(data, details)
+    st.download_button(
+        label="📥 Descargar Reporte en PDF",
+        data=pdf_bytes,
+        file_name=f"Resultado_Simulacro_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+except Exception as e:
+    st.error(f"Error generando PDF: {e}")
 
 st.divider()
 

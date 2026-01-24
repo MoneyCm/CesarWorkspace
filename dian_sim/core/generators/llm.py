@@ -10,9 +10,10 @@ import openai
 import google.generativeai as genai
 
 class LLMGenerator:
-    def __init__(self, provider: str, api_key: str):
+    def __init__(self, provider: str, api_key: str, model_name: str = None):
         self.provider = provider.lower()
         self.api_key = api_key
+        self.model_name = model_name
         
         # Try to initialize both if possible (for fallbacks)
         self.openai_client = None
@@ -28,19 +29,48 @@ class LLMGenerator:
                 base_url="https://api.groq.com/openai/v1"
             )
             
-    def generate_from_text(self, text: str, count: int = 5) -> List[dict]:
+    def generate_from_text(self, text: str, count: int = 5, difficulty: int = 2) -> List[dict]:
+        """Generates questions by splitting into smaller chunks for reliability."""
+        all_results = []
+        batch_size = 5 # Reliable size for JSON generation
+        
+        remaining = count
+        while remaining > 0:
+            current_batch = min(remaining, batch_size)
+            print(f"DEBUG: Generating batch of {current_batch} questions (Remaining: {remaining})...")
+            try:
+                batch_results = self._generate_batch(text, current_batch, difficulty)
+                all_results.extend(batch_results)
+                remaining -= current_batch
+                # Small delay to avoid aggressive rate limits in some providers
+                if remaining > 0:
+                    time.sleep(1)
+            except Exception as e:
+                # If we have some results already, return them instead of failing completely
+                if all_results:
+                    print(f"WARNING: Generation interrupted, but returning {len(all_results)} questions already generated. Error: {e}")
+                    break
+                else:
+                    raise e
+                    
+        return all_results
+
+    def _generate_batch(self, text: str, count: int = 5, difficulty: int = 2) -> List[dict]:
         # Increase context window to 10000 characters for better results
         context = text[:10000]
         
         prompt = f"""
         Actúa como un experto generador de preguntas de examen para la DIAN (Dirección de Impuestos y Aduanas Nacionales de Colombia).
-        Basándote en el siguiente texto, genera {count} preguntas de selección múltiple.
+        Basándote en el siguiente texto, genera EXACTAMENTE {count} preguntas de selección múltiple con un nivel de DIFICULTAD: {difficulty} (donde 1=Básico, 2=Intermedio, 3=Avanzado).
 
-        IDIOMA OBLIGATORIO: ESPAÑOL (SPANISH).
-        Todas las preguntas, opciones y justificaciones deben estar en completo y correcto español.
-        SI EL TEXTO ORIGINAL ESTÁ EN INGLÉS, TRADUCE EL CONTEXTO Y GENERA LAS PREGUNTAS EN ESPAÑOL.
+        REQUISITO CRÍTICO - PREGUNTAS SITUACIONALES: 
+        DEBES crear situaciones de la vida real o casos hipotéticos. NO hagas preguntas que se respondan con solo recordar una definición. El usuario debe ANALIZAR y APLICAR el conocimiento al caso planteado.
 
-        Las preguntas deben evaluar comprensión, aplicación o análisis (no solo memoria).
+        EJEMPLO DE FORMATO DESEADO:
+        - STEM: "SITUACIÓN: Un contribuyente presenta su declaración fuera de término alegando fallas técnicas, pero no hay reporte de contingencia oficial. PREGUNTA: ¿Cuál es el procedimiento que usted, como gestor de impuestos, debe aplicar?"
+        - OPCIONES: {{"A": "Sanción por extemporaneidad según el Estatuto.", "B": "Aceptar la justificación sin pruebas.", "C": "Anular la declaración sin previo aviso."}}
+
+        IDIOMA OBLIGATORIO: ESPAÑOL.
         
         TEXTO A ANALIZAR:
         "{context}..."
@@ -52,26 +82,29 @@ class LLMGenerator:
               "track": "FUNCIONAL | COMPORTAMENTAL | INTEGRIDAD",
               "competency": "nombre de la competencia",
               "topic": "tema específico",
-              "stem": "Enunciado de la pregunta...",
+              "difficulty": {difficulty},
+              "stem": "SITUACIÓN: [Caso detallado]. PREGUNTA: [Enunciado táctico]...",
               "options": {{
-                "A": "Texto opción A",
-                "B": "Texto opción B",
-                "C": "Texto opción C"
+                "A": "Acción/Respuesta A",
+                "B": "Acción/Respuesta B",
+                "C": "Acción/Respuesta C"
               }},
               "correct_key": "A",
-              "rationale": "Justificación técnica basada en el texto..."
+              "rationale": "Justificación técnica basada específicamente en la norma aplicada al caso..."
             }}
           ]
         }}
         
-        No incluyas texto fuera del objeto JSON. Solo JSON válido.
+        IMPORTANTE: No respondas con nada que no sea el JSON. Asegúrate de que el campo 'stem' SIEMPRE empiece con 'SITUACIÓN:'.
         """
         
         try:
             content = ""
             if self.provider == "openai" and self.openai_client:
+                model = self.model_name if self.model_name else "gpt-4o-mini"
+                print(f"DEBUG: Enviando lote a OpenAI ({model})...")
                 response = self.openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=model,
                     messages=[
                         {"role": "user", "content": prompt}
                     ],
@@ -81,7 +114,7 @@ class LLMGenerator:
                 
             elif self.provider == "groq" and self.openai_client:
                 # Groq es extremadamente rápido con Llama 3
-                print(f"DEBUG: Enviando prompt a Groq (Llama 3.3)...")
+                print(f"DEBUG: Enviando lote a Groq (Llama 3.3)...")
                 response = self.openai_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
@@ -91,76 +124,64 @@ class LLMGenerator:
                     response_format={"type": "json_object"}
                 )
                 content = response.choices[0].message.content
-                print(f"DEBUG: Respuesta de Groq recibida (primeros 50 caracteres): {content[:50]}...")
                 
             elif self.provider == "gemini":
-                # Use absolute resource names for stability
-                candidates = [
-                    "models/gemini-1.5-flash", 
-                    "models/gemini-1.5-flash-latest", 
-                    "models/gemini-1.5-pro",
-                    "models/gemini-2.0-flash-exp"
-                ]
-                
-                print(f"DEBUG [v1.2.3]: Iniciando generación Gemini con candidatos: {candidates}")
+                # Use model names directly (SDK handles them better without models/ prefix sometimes)
+                if self.model_name:
+                    clean_name = self.model_name.replace("models/", "")
+                    candidates = [clean_name, "models/" + clean_name]
+                else:
+                    candidates = [
+                        "gemini-1.5-flash", 
+                        "gemini-1.5-pro",
+                        "gemini-1.5-flash-latest"
+                    ]
                 
                 response = None
                 last_error = None
                 
                 for model_name in candidates:
                     try:
-                        print(f"DEBUG: Probando {model_name}...")
+                        print(f"DEBUG: Enviando lote a Gemini ({model_name})...")
                         model = genai.GenerativeModel(model_name=model_name)
                         response = model.generate_content(prompt)
                         if response:
-                            print(f"DEBUG: Éxito total con {model_name}")
                             break
                     except Exception as e:
                         error_str = str(e).lower()
-                        print(f"DEBUG: Fallo en {model_name}: {str(e)}")
                         last_error = e
-                        
-                        # If it's a quota error, wait a bit before trying the next model
                         if "429" in error_str or "quota" in error_str:
-                            print(f"DEBUG: Error de cuota detectado en {model_name}. Esperando 2 segundos...")
-                            time.sleep(2)
-                        
+                            print(f"DEBUG: Quota hit for {model_name}, waiting...")
+                            time.sleep(3)
                         continue
                 
                 if not response:
+                    # Specific message for Google API Quota
+                    if "429" in str(last_error) or "quota" in str(last_error).lower():
+                        raise Exception("Límite de cuota de Google Gemini alcanzado (Free Tier). Por favor, intenta generar menos preguntas a la vez o espera 60 segundos para que se reinicie tu ventana de peticiones por minuto.")
+                    
                     # Final fallback to OpenAI if available
-                    if self.openai_client:
-                        print("DEBUG: Gemini agotado (Cuota). Intentando OpenAI (v1.2.3)...")
-                        # Use OpenAI block directly to avoid recursive recursion issues if needed
+                    if self.openai_client and self.provider != "gemini": # only if it's a multi-provider context
                         response_oa = self.openai_client.chat.completions.create(
                             model="gpt-4o-mini",
                             messages=[{"role": "user", "content": prompt}],
                             response_format={"type": "json_object"}
                         )
                         content = response_oa.choices[0].message.content
-                        if content:
-                            print("DEBUG: Recuperado vía OpenAI.")
-                        else:
-                            raise Exception("Fallo en Gemini y OpenAI devolvió respuesta vacía.")
                     else:
-                        error_msg = str(last_error)
-                        if "limit: 0" in error_msg or "daily" in error_msg.lower():
-                            raise Exception("CUOTA_DIARIA_AGOTADA: Has agotado el límite gratuito de Google por hoy. Espera 24h o usa OpenAI.")
-                        raise Exception(f"CONEXION_FALLIDA_GEMINI_V123: {error_msg}")
+                        raise Exception(f"Fallo en generación Gemini del lote: {last_error}")
 
                 try:
-                    content = response.text
-                except Exception as e:
-                    # Handle safety block or empty response
-                    print(f"DEBUG: Error extracting text from response: {str(e)}")
+                    if not content:
+                        content = response.text
+                except Exception:
                     if hasattr(response, 'candidates') and response.candidates:
-                         # Try to see if there is any text at all
                          try:
                              content = response.candidates[0].content.parts[0].text
                          except:
-                             raise Exception("La IA bloqueó la respuesta o devolvió un contenido vacío por seguridad.")
+                             raise Exception("La IA bloqueó la respuesta del lote por seguridad.")
                     else:
-                        raise Exception(f"No se pudo obtener texto de la respuesta: {str(e)}")
+                        raise Exception("No se pudo obtener texto de la respuesta del lote.")
 
                 # Cleanup markdown
                 if "```json" in content:
@@ -172,7 +193,12 @@ class LLMGenerator:
             try:
                 data = json.loads(content)
             except json.JSONDecodeError as e:
-                raise Exception(f"La IA devolvió un formato no válido: {str(e)}. Contenido: {content[:100]}...")
+                # Attempt to clean common errors
+                content = content.replace("'", '"') # risky but common Fix
+                try:
+                    data = json.loads(content)
+                except:
+                    raise Exception(f"Error de sintaxis JSON en el lote: {str(e)}")
 
             # Extract candidates
             candidates = []
@@ -182,14 +208,13 @@ class LLMGenerator:
                 elif len(data.keys()) == 1:
                     candidates = list(data.values())[0]
                 else:
-                    # Maybe it returned the first question as the root?
                     if "stem" in data:
                         candidates = [data]
             elif isinstance(data, list):
                 candidates = data
                 
             if not candidates or not isinstance(candidates, list):
-                raise Exception("No se encontraron preguntas en la respuesta de la IA.")
+                raise Exception("No se encontraron preguntas en la respuesta del lote.")
                 
             # Convert to internal Dict structure
             results = []
@@ -202,7 +227,7 @@ class LLMGenerator:
                     "track": item.get("track", "FUNCIONAL"),
                     "competency": item.get("competency", "General"),
                     "topic": item.get("topic", "Generado por IA"),
-                    "difficulty": 3,
+                    "difficulty": item.get("difficulty", difficulty),
                     "stem": item.get("stem"),
                     "options_json": item.get("options"),
                     "correct_key": item.get("correct_key"),
@@ -215,5 +240,56 @@ class LLMGenerator:
             return results
             
         except Exception as e:
-            raise Exception(f"Error en generación: {str(e)}")
+            error_msg = str(e)
+            if "429" in error_msg or "rate_limit_exceeded" in error_msg:
+                if self.provider == "groq":
+                    raise Exception("Límite diario de Groq alcanzado (TPD). Por favor, espera a que se reinicie tu cuota o usa Google Gemini como alternativa gratuita más estable.")
+                else:
+                    raise Exception(f"Límite de velocidad (Rate Limit) alcanzado: {error_msg}")
+            raise Exception(f"Fallo en lote: {error_msg}")
+
+    def explain_question(self, question_data: dict) -> str:
+        """Provides a socratic and educational explanation for a question."""
+        prompt = f"""
+        Actúa como un Tutor Experto de la DIAN. Tu objetivo es explicar la lógica detrás de la siguiente pregunta de examen sin revelar la respuesta correcta directamente si es posible, o guiando al estudiante a través del razonamiento legal.
+        
+        CASO/SITUACIÓN: {question_data.get('stem')}
+        OPCIONES DISPONIBLES: {question_data.get('options_json')}
+        RESPUESTA CORRECTA (para tu referencia): {question_data.get('correct_key')}
+        JUSTIFICACIÓN TÉCNICA: {question_data.get('rationale')}
+        
+        INSTRUCCIONES PARA EL TUTOR:
+        1. Sé pedagógico y cercano.
+        2. Explica la norma o concepto legal involucrado.
+        3. Ayuda a descartar las opciones incorrectas basándote en la lógica del caso.
+        4. No digas simplemente "La respuesta es A". Di algo como "En este escenario, debemos observar que la norma X indica Y... por lo tanto..."
+        5. Mantén la explicación concisa (máximo 2 párrafos).
+        
+        IDIOMA: ESPAÑOL.
+        """
+        
+        try:
+            if self.provider == "openai" and self.openai_client:
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.choices[0].message.content
+                
+            elif self.provider == "groq" and self.openai_client:
+                response = self.openai_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.choices[0].message.content
+                
+            elif self.provider == "gemini":
+                model = genai.GenerativeModel("models/gemini-1.5-flash")
+                response = model.generate_content(prompt)
+                return response.text
+                
+            return "No se pudo conectar con el proveedor de IA para la explicación."
+        except Exception as e:
+            return f"El tutor tuvo un pequeño problema: {str(e)}"
+
 

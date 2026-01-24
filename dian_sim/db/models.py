@@ -39,6 +39,23 @@ class Attempt(Base):
 
     question = relationship("Question", back_populates="attempts")
 
+class UserStats(Base):
+    __tablename__ = "user_stats"
+    id = Column(Integer, primary_key=True)
+    current_streak = Column(Integer, default=0)
+    max_streak = Column(Integer, default=0)
+    total_points = Column(Integer, default=0)
+    last_activity = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+    achievement_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(String)
+    icon = Column(String) # Emoji or path
+    unlocked_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 class Skill(Base):
     __tablename__ = "skills"
 
