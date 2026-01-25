@@ -148,52 +148,83 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # 6. Herramientas Administrativas
 st.divider()
-st.subheader("🛠️ Herramientas de Datos")
-col_exp1, col_exp2 = st.columns(2)
+st.subheader("🛠️ Herramientas de Exportación")
 
-with col_exp1:
-    if st.button("📤 Exportar Banco a Excel", use_container_width=True):
-        from db.models import Question
-        all_qs = db.query(Question).all()
-        if all_qs:
-            export_data = []
-            for q in all_qs:
-                opts = q.options_json if q.options_json else {}
-                export_data.append({
-                    'track': q.track,
-                    'competency': q.competency,
-                    'topic': q.topic,
-                    'difficulty': q.difficulty,
-                    'stem': q.stem,
-                    'options_A': opts.get('A', ''),
-                    'options_B': opts.get('B', ''),
-                    'options_C': opts.get('C', ''),
-                    'options_D': opts.get('D', ''),
-                    'correct_key': q.correct_key,
-                    'rationale': q.rationale
-                })
-            df_export = pd.DataFrame(export_data)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_export.to_excel(writer, index=False, sheet_name='Banco_Preguntas')
-            
-            st.download_button(
-                label="📥 Descargar Excel",
-                data=output.getvalue(),
-                file_name=f"Banco_Preguntas_DIAN_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        else:
-            st.warning("El banco está vacío.")
+from db.models import Question
+all_qs = db.query(Question).all()
 
-with col_exp2:
-    if st.button("🗑️ Reiniciar Estadísticas", use_container_width=True):
-        st.error("¿Estás seguro de reiniciar tus puntos y rachas?")
-        if st.button("Sí, deseo reiniciar todo"):
-             db.query(UserStats).delete()
-             db.commit()
-             st.success("Estadísticas reiniciadas.")
-             st.rerun()
+if all_qs:
+    export_data = []
+    text_lines = []
+    
+    # Header for text version
+    text_lines.append("track|competency|topic|stem|options_A|options_B|options_C|options_D|correct_key|rationale|difficulty")
+    
+    for q in all_qs:
+        opts = q.options_json if q.options_json else {}
+        
+        # Data for Excel
+        row = {
+            'track': q.track,
+            'competency': q.competency,
+            'topic': q.topic,
+            'difficulty': q.difficulty,
+            'stem': q.stem,
+            'options_A': opts.get('A', ''),
+            'options_B': opts.get('B', ''),
+            'options_C': opts.get('C', ''),
+            'options_D': opts.get('D', ''),
+            'correct_key': q.correct_key,
+            'rationale': q.rationale
+        }
+        export_data.append(row)
+        
+        # Data for Text Format (Pipes)
+        clean_stem = str(q.stem).replace("\n", " ").replace("|", " ")
+        clean_rat = str(q.rationale).replace("\n", " ").replace("|", " ")
+        text_row = f"{q.track}|{q.competency}|{q.topic}|{clean_stem}|{opts.get('A','')}|{opts.get('B','')}|{opts.get('C','')}|{opts.get('D','')}|{q.correct_key}|{clean_rat}|{q.difficulty}"
+        text_lines.append(text_row)
+    
+    df_export = pd.DataFrame(export_data)
+    text_content = "\n".join(text_lines)
+    
+    col_exp1, col_exp2 = st.columns(2)
+    
+    with col_exp1:
+        output_xlsx = io.BytesIO()
+        with pd.ExcelWriter(output_xlsx, engine='openpyxl') as writer:
+            df_export.to_excel(writer, index=False, sheet_name='Banco_Preguntas')
+        
+        st.download_button(
+            label="📥 Descargar Banco (Excel .xlsx)",
+            data=output_xlsx.getvalue(),
+            file_name=f"Banco_Preguntas_DIAN_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+        st.caption("Ideal para respaldo completo y edición profesional.")
+
+    with col_exp2:
+        st.download_button(
+            label="📄 Descargar Banco (Texto/Pipes)",
+            data=text_content,
+            file_name=f"Banco_Preguntas_Texto_{datetime.datetime.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+        st.caption("Formato compatible con Copiar/Pegar (delimitado por |).")
+
+else:
+    st.warning("El banco está vacío. No hay datos para exportar.")
+
+st.divider()
+st.subheader("⚙️ Otras Acciones")
+if st.button("🗑️ Reiniciar Estadísticas de Usuario", use_container_width=True):
+    st.error("¿Estás seguro de reiniciar tus puntos y rachas?")
+    if st.button("Sí, deseo reiniciar todo"):
+         db.query(UserStats).delete()
+         db.commit()
+         st.success("Estadísticas reiniciadas.")
+         st.rerun()
 
 db.close()
