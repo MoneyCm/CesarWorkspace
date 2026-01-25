@@ -136,13 +136,15 @@ class LLMGenerator:
                 content = response.choices[0].message.content
                 
             elif self.provider == "gemini":
-                # Stable Gemini Model Names with explicit prefixes
+                # Modelos verificados mediante diagnóstico en la cuenta del usuario
                 candidates = [
-                    "models/gemini-1.5-flash",
-                    "models/gemini-1.5-flash-latest",
+                    "models/gemini-2.0-flash",      # El mejor y más nuevo
+                    "models/gemini-1.5-flash", 
+                    "models/gemini-flash-latest",   # Candidato fuerte según diagnóstico
                     "models/gemini-1.5-pro",
-                    "models/gemini-1.5-pro-latest",
-                    "models/gemini-1.0-pro"
+                    "models/gemini-pro-latest",     # Candidato fuerte según diagnóstico
+                    "models/gemini-1.0-pro",
+                    "models/gemini-pro"
                 ]
                 # If specialized model requested, put it at the very beginning
                 if self.model_name:
