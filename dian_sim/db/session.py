@@ -16,8 +16,9 @@ except:
     raw_url = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
 
 # Ensure PostgreSQL uses the correct driver for SQLAlchemy 2.0+
-if raw_url.startswith("postgresql://"):
-    raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://")
+if raw_url.startswith("postgres://") or raw_url.startswith("postgresql://"):
+    raw_url = raw_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    raw_url = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 DATABASE_URL = raw_url
 
@@ -35,11 +36,14 @@ try:
     Base.metadata.create_all(bind=engine)
     
     # Proactive migration for cloud databases (PostgreSQL)
-    if "postgresql" in DATABASE_URL:
+    if "postgres" in DATABASE_URL:
         with engine.connect() as conn:
-            # Add columns if they don't exist
+            # Migration for Questions
             conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
             conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
+            # Migration for Skills (to keep taxonomy)
+            conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
+            conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
             conn.commit()
             print("✅ Database migration successful.")
 except Exception as e:

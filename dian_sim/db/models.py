@@ -65,6 +65,8 @@ class Skill(Base):
     track = Column(String, nullable=False)
     competency = Column(String, nullable=False)
     topic = Column(String, nullable=False)
+    macro_dominio = Column(String, nullable=True) # Específico GOA
+    micro_competencia = Column(String, nullable=True) # Específico GOA
     mastery_score = Column(Float, default=0.0) # 0-100
     priority_weight = Column(Float, default=1.0)
     last_seen = Column(DateTime, nullable=True)
