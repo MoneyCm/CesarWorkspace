@@ -8,7 +8,6 @@ REQUIRED_COLUMNS = [
     'options_A', 
     'options_B', 
     'options_C', 
-    'options_D', 
     'correct_key'
 ]
 
