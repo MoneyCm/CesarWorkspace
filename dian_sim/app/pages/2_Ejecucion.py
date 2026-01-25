@@ -196,14 +196,14 @@ with col2:
         if st.button("🤖 Tutor IA (Socrático)", use_container_width=True):
             with st.spinner("Analizando..."):
                 try:
-                    import os
-                    provider = st.secrets.get("DEFAULT_PROVIDER", os.getenv("DEFAULT_PROVIDER", "gemini")).lower()
-                    api_key = st.secrets.get(f"{provider.upper()}_API_KEY", os.getenv(f"{provider.upper()}_API_KEY"))
+                    from core.config import get_api_key
+                    current_provider = st.session_state.get("current_provider", "Gemini")
+                    api_key = get_api_key(current_provider)
                     if api_key:
-                        gen = LLMGenerator(provider, api_key)
+                        gen = LLMGenerator(current_provider, api_key)
                         q_data = {"stem": question.stem, "options_json": question.options_json, "correct_key": question.correct_key, "rationale": question.rationale}
                         st.session_state["tutor_explanation"] = gen.explain_question(q_data)
-                    else: st.warning("⚠️ API Key no configurada.")
+                    else: st.warning(f"⚠️ API Key de {current_provider} no configurada.")
                 except Exception as e: st.error(f"Error: {e}")
     if st.session_state.get("tutor_explanation"):
         st.info(st.session_state["tutor_explanation"])

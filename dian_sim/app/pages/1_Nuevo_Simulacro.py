@@ -1,9 +1,5 @@
 import streamlit as st
 import os, sys
-
-# Add root to python path to import modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 import pandas as pd
 
 # Add root to python path to import modules
