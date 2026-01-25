@@ -21,8 +21,6 @@ if raw_url.startswith("postgresql://"):
 
 DATABASE_URL = raw_url
 
-print(f"DEBUG: Connecting to database at: {DATABASE_URL}")
-
 engine = create_engine(
     DATABASE_URL, 
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
@@ -30,13 +28,22 @@ engine = create_engine(
     pool_recycle=300     # Recycle connections every 5 minutes
 )
 
-# Auto-create tables in the database (Supabase/Postgres/SQLite)
+# Auto-create tables and handle migrations (PostgreSQL/SQLite)
 from db.models import Base
+from sqlalchemy import text
 try:
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables confirmed/created.")
+    
+    # Proactive migration for cloud databases (PostgreSQL)
+    if "postgresql" in DATABASE_URL:
+        with engine.connect() as conn:
+            # Add columns if they don't exist
+            conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
+            conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
+            conn.commit()
+            print("✅ Database migration successful.")
 except Exception as e:
-    print(f"❌ Error creating tables: {e}")
+    print(f"⚠️ Database Notice: {e}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

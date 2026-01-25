@@ -93,24 +93,27 @@ with st.container():
                 difficulty_profile = st.multiselect("Nivel de Dificultad", [1, 2, 3], default=[1, 2, 3], format_func=lambda x: {1: "🟢 Básico", 2: "🟡 Intermedio", 3: "🔴 Avanzado"}[x], key="diff_profile")
 
             # Check availability
-            db_chk = get_db()
-            query_chk = db_chk.query(Question).filter(Question.topic.in_(profile_topics))
-            if difficulty_profile:
-                query_chk = query_chk.filter(Question.difficulty.in_(difficulty_profile))
-            available_count = query_chk.count()
-            db_chk.close()
-            
-            if available_count < 5:
-                st.warning(f"⚠️ Solo hay {available_count} preguntas disponibles para estos temas en tu banco local.")
-                st.markdown("Recomendación: Usa el **Generador IA** para crear preguntas específicas para este cargo.")
-                if st.button("Ir al Generador IA (Preguntas Situacionales)"):
-                    st.session_state["ai_default_text"] = profile_data["raw_text"]
-                    st.session_state["ai_default_topic"] = selected_profile_name
-                    # Pre-select difficulty if only one is chosen, otherwise default to Intermedio
-                    st.session_state["ai_default_diff"] = difficulty_profile[0] if len(difficulty_profile) == 1 else 2
-                    st.switch_page("pages/4_Generador_IA.py")
-            else:
-                st.success(f"✅ Hay {available_count} preguntas disponibles para este perfil.")
+            try:
+                db_chk = get_db()
+                query_chk = db_chk.query(Question).filter(Question.topic.in_(profile_topics))
+                if difficulty_profile:
+                    query_chk = query_chk.filter(Question.difficulty.in_(difficulty_profile))
+                available_count = query_chk.count()
+                db_chk.close()
+                
+                if available_count < 5:
+                    st.warning(f"⚠️ Solo hay {available_count} preguntas disponibles para estos temas en tu banco local.")
+                    st.markdown("Recomendación: Usa el **Generador IA** para crear preguntas específicas para este cargo.")
+                    if st.button("Ir al Generador IA (Preguntas Situacionales)"):
+                        st.session_state["ai_default_text"] = profile_data["raw_text"]
+                        st.session_state["ai_default_topic"] = selected_profile_name
+                        st.session_state["ai_default_diff"] = difficulty_profile[0] if len(difficulty_profile) == 1 else 2
+                        st.switch_page("pages/4_Generador_IA.py")
+                else:
+                    st.success(f"✅ Hay {available_count} preguntas disponibles para este perfil.")
+            except Exception as e:
+                st.error("⚠️ Error al consultar el banco. Es posible que la base de datos se esté actualizando.")
+                available_count = 0
         
         st.markdown("---")
         only_situational = st.toggle("Solo preguntas situacionales (Nuevas)", value=True, help="Filtra para mostrar solo preguntas que plantean casos prácticos generados con el nuevo sistema.")
