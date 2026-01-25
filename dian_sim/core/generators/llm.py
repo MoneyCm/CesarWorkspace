@@ -136,21 +136,21 @@ class LLMGenerator:
                 content = response.choices[0].message.content
                 
             elif self.provider == "gemini":
-                # Stable Gemini Model Names with latest versions
+                # Stable Gemini Model Names with explicit prefixes
                 candidates = [
-                    "gemini-1.5-flash-latest",
-                    "gemini-1.5-flash", 
-                    "gemini-1.5-pro-latest",
-                    "gemini-1.5-pro",
-                    "gemini-pro"
+                    "models/gemini-1.5-flash",
+                    "models/gemini-1.5-flash-latest",
+                    "models/gemini-1.5-pro",
+                    "models/gemini-1.5-pro-latest",
+                    "models/gemini-1.0-pro"
                 ]
                 # If specialized model requested, put it at the very beginning
                 if self.model_name:
                     clean_name = self.model_name.replace("models/", "")
-                    # Ensure it's at index 0
-                    if clean_name in candidates:
-                        candidates.remove(clean_name)
-                    candidates.insert(0, clean_name)
+                    full_name = f"models/{clean_name}"
+                    if full_name in candidates:
+                        candidates.remove(full_name)
+                    candidates.insert(0, full_name)
                 
                 content = ""
                 last_error = None
