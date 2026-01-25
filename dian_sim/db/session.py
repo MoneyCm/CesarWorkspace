@@ -36,19 +36,29 @@ try:
     # 1. Ensure tables exist
     Base.metadata.create_all(bind=engine)
     
-    # 2. Force Migration for cloud databases
-    if "postgres" in DATABASE_URL.lower():
-        print("🔍 Database: PostgreSQL detected. Checking for migrations...")
-        with engine.begin() as conn:  # engine.begin() automatically commits
-            # Questions Table
-            conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
-            conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
-            # Skills Table
-            conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
-            conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
-            print("✅ Database migration: Columns verified/added successfully.")
-    else:
-        print(f"ℹ️ Database: Local SQLite or other ({DATABASE_URL[:20]}...). Skipping Postgres migrations.")
+    # 2. Universal Migration Logic (SQLite & Postgres)
+    db_type = "postgres" if "postgres" in DATABASE_URL.lower() else "sqlite"
+    print(f"🔍 Database: {db_type.upper()} detected. Checking schema synchronization...")
+    
+    with engine.begin() as conn:
+        # Tables to check
+        tables_to_migrate = ["questions", "skills"]
+        new_cols = ["macro_dominio", "micro_competencia"]
+        
+        for table in tables_to_migrate:
+            # Check existing columns
+            if db_type == "sqlite":
+                existing_cols = [row[1] for row in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()]
+            else:
+                # Postgres
+                existing_cols = [row[0] for row in conn.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}';")).fetchall()]
+            
+            for col in new_cols:
+                if col not in existing_cols:
+                    print(f"🔨 Adding column {col} to table {table}...")
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} VARCHAR;"))
+        
+        print("✅ Database schema synchronized successfully.")
 
 except Exception as e:
     # In Streamlit Cloud, this will show up in the Logs (Manage App -> Logs)
