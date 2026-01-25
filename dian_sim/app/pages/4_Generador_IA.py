@@ -77,12 +77,17 @@ with col1:
     
     tab_text, tab_file = st.tabs(["📋 Pegar Texto", "📂 Subir Archivo"])
     
-    source_text = ""
+    # Persistent source text logic
+    if "ai_source_text" not in st.session_state:
+        st.session_state["ai_source_text"] = st.session_state.get("ai_default_text", "")
     
     with tab_text:
-        pasted_text = st.text_area("Pega aquí el artículo o ley:", height=300)
+        pasted_text = st.text_area("Pega aquí el artículo o ley:", 
+                                  value=st.session_state["ai_source_text"], 
+                                  height=300,
+                                  key="ia_text_input")
         if pasted_text:
-            source_text = pasted_text
+            st.session_state["ai_source_text"] = pasted_text
             
     with tab_file:
         uploaded_file = st.file_uploader("Sube un documento (PDF, TXT)", type=["pdf", "txt"])
@@ -93,28 +98,23 @@ with col1:
                     extracted = []
                     for page in reader.pages:
                         extracted.append(page.extract_text())
-                    source_text = "\n".join(extracted)
+                    st.session_state["ai_source_text"] = "\n".join(extracted)
                     st.success(f"PDF cargado: {len(reader.pages)} páginas leídas.")
                 else:
                     # TXT
-                    source_text = uploaded_file.read().decode("utf-8")
+                    st.session_state["ai_source_text"] = uploaded_file.read().decode("utf-8")
                     st.success("Archivo de texto cargado.")
             except Exception as e:
                 st.error(f"Error leyendo archivo: {e}")
 
+    source_text = st.session_state["ai_source_text"]
     st.caption(f"Caracteres detectados: {len(source_text)}")
     
-    # Pre-fill from session state if available (Workflow from New Simulation)
+    # Pre-fill topic from session state if available 
     default_topic = st.session_state.get("ai_default_topic", "Gestor II")
-    
-    # Check if we should auto-fill source text from session
-    if "ai_default_text" in st.session_state and not source_text:
-        source_text = st.session_state["ai_default_text"]
-        st.info("ℹ️ Se ha cargado el texto del perfil seleccionado automáticamente.")
-    
     custom_topic = st.text_input("Etiqueta / Tema para estas preguntas (Ej: Gestor II)", value=default_topic)
     
-    num_q = st.slider("Cantidad de preguntas a generar", 1, 200, 10)
+    num_q = st.slider("Cantidad de preguntas a generar", 1, 20, 5) # Default safer
     
     difficulty_p_val = st.session_state.get("ai_default_diff", 2)
     inv_difficulty_map = {1: "Básico", 2: "Intermedio", 3: "Avanzado"}
@@ -124,7 +124,7 @@ with col1:
     difficulty_value = difficulty_map[difficulty_label]
     
     st.info("💡 Todas las preguntas generadas serán **SITUACIONALES** (casos prácticos) para cumplir con el estándar de evaluación de la DIAN.")
-    st.caption("💎 **Tip Pro:** Si usas Gemini Free Tier, intenta generar lotes de **5 a 10 preguntas** a la vez para evitar bloqueos por cuota de tokens.")
+    st.caption("💎 **Tip Pro:** Si usas Gemini Free Tier, intenta generar lotes de **5 a 10 preguntas** a la vez.")
     
     generate_btn = st.button("✨ Generar Preguntas", type="primary", use_container_width=True)
 

@@ -12,20 +12,20 @@ import google.generativeai as genai
 class LLMGenerator:
     def __init__(self, provider: str, api_key: str, model_name: str = None):
         self.provider = provider.lower()
-        self.api_key = api_key
+        self.api_key = api_key.strip() if api_key else ""
         self.model_name = model_name
         
         # Try to initialize both if possible (for fallbacks)
         self.openai_client = None
-        if self.provider == "openai":
-            self.openai_client = openai.OpenAI(api_key=api_key)
+        if self.provider == "openai" and self.api_key:
+            self.openai_client = openai.OpenAI(api_key=self.api_key)
         
-        if self.provider == "gemini":
-            genai.configure(api_key=api_key)
+        if self.provider == "gemini" and self.api_key:
+            genai.configure(api_key=self.api_key)
             
-        if self.provider == "groq":
+        if self.provider == "groq" and self.api_key:
             self.openai_client = openai.OpenAI(
-                api_key=api_key,
+                api_key=self.api_key,
                 base_url="https://api.groq.com/openai/v1"
             )
             
@@ -141,16 +141,26 @@ class LLMGenerator:
                 response = None
                 last_error = None
                 
+                # Relax security filters for technical legal content
+                safety_settings = [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+                
                 for model_name in candidates:
                     try:
                         print(f"DEBUG: Enviando lote a Gemini ({model_name})...")
                         model = genai.GenerativeModel(model_name=model_name)
-                        response = model.generate_content(prompt)
+                        response = model.generate_content(prompt, safety_settings=safety_settings)
                         if response and response.text:
                             content = response.text
                             break
                     except Exception as e:
                         last_error = e
+                        if "safety" in str(e).lower():
+                             print(f"⚠️ Aviso: Gemini bloqueó contenido por seguridad en {model_name}. Intentando otro...")
                         print(f"DEBUG: Fallo Gemini {model_name}: {e}")
                         continue
                 
