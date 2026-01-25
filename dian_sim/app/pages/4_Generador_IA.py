@@ -153,23 +153,23 @@ if generate_btn:
         with st.spinner("Analizando texto y creando preguntas... (Esto puede tardar unos segundos)"):
             try:
                 generator = LLMGenerator(provider, api_key, model_name=model_name)
-            results = generator.generate_from_text(source_text, num_q, difficulty=difficulty_value)
-            
-            # Apply Custom Topic Override
-            if results and custom_topic.strip():
-                for q in results:
-                    q['topic'] = custom_topic.strip()
-            
-            st.session_state["generated_questions"] = results
-            
-            if not results:
-                st.error("No se pudieron generar preguntas. Revisa tu API Key o el formato del texto.")
-            else:
-                st.success(f"¡{len(results)} preguntas generadas!")
-                print(f"DEBUG: Generated {len(results)} questions for review.")
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-            print(f"DEBUG: Generation ERROR: {e}")
+                results = generator.generate_from_text(source_text, num_q, difficulty=difficulty_value)
+                
+                # Apply Custom Topic Override
+                if results and custom_topic.strip():
+                    for q in results:
+                        q['topic'] = custom_topic.strip()
+                
+                st.session_state["generated_questions"] = results
+                
+                if not results:
+                    st.error("No se pudieron generar preguntas. Revisa tu API Key o el formato del texto.")
+                else:
+                    st.success(f"¡{len(results)} preguntas generadas!")
+                    print(f"DEBUG: Generated {len(results)} questions for review.")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                print(f"DEBUG: Generation ERROR: {e}")
 
 # Create DB Session safely for checks
 def check_duplicate(hash_norm):
