@@ -55,16 +55,18 @@ def save_api_key_persistent(provider: str, value: str) -> bool:
     # 1. Save to DB (Priority)
     db = SessionLocal()
     try:
+        clean_val = value.strip() # Clean white spaces
         config_entry = db.query(Configuration).filter_by(key_name=key_name).first()
         if config_entry:
-            config_entry.value = value
+            config_entry.value = clean_val
         else:
-            config_entry = Configuration(key_name=key_name, value=value)
+            config_entry = Configuration(key_name=key_name, value=clean_val)
             db.add(config_entry)
         db.commit()
+        print(f"✅ API Key for {provider} saved to central DB.")
         success = True
     except Exception as e:
-        print(f"Error saving to DB: {e}")
+        print(f"❌ Error saving API Key to DB: {e}")
         db.rollback()
     finally:
         db.close()
@@ -74,10 +76,11 @@ def save_api_key_persistent(provider: str, value: str) -> bool:
         if not os.path.exists(ENV_PATH):
             with open(ENV_PATH, "w") as f:
                 f.write("# DIAN Sim - Environment Configuration\n")
-        set_key(ENV_PATH, key_name, value)
-        os.environ[key_name] = value
-    except:
-        pass # In cloud, this might fail, but DB is already updated
+        set_key(ENV_PATH, key_name, clean_val)
+        os.environ[key_name] = clean_val
+        print(f"✅ API Key for {provider} saved to local .env.")
+    except Exception as e:
+        print(f"⚠️ Notice: Could not save to local .env (Cloud env?): {e}")
         
     return success
 

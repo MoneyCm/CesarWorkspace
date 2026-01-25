@@ -42,8 +42,12 @@ try:
     
     with engine.begin() as conn:
         # Tables to check
-        tables_to_migrate = ["questions", "skills"]
-        new_cols = ["macro_dominio", "micro_competencia"]
+        tables_to_migrate = ["questions", "skills", "configurations"] # Agregada configurations
+        new_cols_map = {
+            "questions": ["macro_dominio", "micro_competencia"],
+            "skills": ["macro_dominio", "micro_competencia"],
+            "configurations": [] # Solo verificar existencia
+        }
         
         for table in tables_to_migrate:
             # Check existing columns
@@ -53,7 +57,12 @@ try:
                 # Postgres
                 existing_cols = [row[0] for row in conn.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}';")).fetchall()]
             
-            for col in new_cols:
+            # Check if table itself exists (especially for Postgres if create_all failed partially)
+            if not existing_cols and db_type != "sqlite":
+                 # Minimal check or force creation if needed, but let's focus on missing columns
+                 pass
+
+            for col in new_cols_map.get(table, []):
                 if col not in existing_cols:
                     print(f"🔨 Adding column {col} to table {table}...")
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} VARCHAR;"))

@@ -46,14 +46,19 @@ with st.expander("🔐 Configuración de API Key", expanded=True):
     col_key, col_save_btn = st.columns([0.8, 0.2])
     
     with col_key:
-        api_key = st.text_input(f"API Key {provider}", value=api_key_saved, type="password")
+        api_key = st.text_input(f"API Key {provider}", value=api_key_saved, type="password", help="Pega aquí tu llave de API")
+        if api_key_saved:
+            st.success(f"✅ Llave de {provider} cargada (Persistente)")
+        else:
+            st.info(f"💡 Ingresa tu llave de {provider} y dale a Guardar")
     
     with col_save_btn:
         st.write("<br>", unsafe_allow_html=True)
-        if st.button("💾 Guardar", help="Guardar esta llave permanentemente en tu PC"):
+        if st.button("💾 Guardar", help="Guardar esta llave permanentemente en la base de datos"):
             if api_key:
                 if save_api_key_local(provider, api_key):
                     st.success("¡Guardada!")
+                    st.rerun()
                 else:
                     st.error("Error al guardar")
             else:

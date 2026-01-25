@@ -131,16 +131,12 @@ class LLMGenerator:
                 content = response.choices[0].message.content
                 
             elif self.provider == "gemini":
-                # Use model names directly (SDK handles them better without models/ prefix sometimes)
-                if self.model_name:
-                    clean_name = self.model_name.replace("models/", "")
-                    candidates = [clean_name, "models/" + clean_name]
-                else:
-                    candidates = [
-                        "gemini-1.5-flash", 
-                        "gemini-1.5-pro",
-                        "gemini-1.5-flash-latest"
-                    ]
+                # Ensure model name is clean
+                curr_model = self.model_name.replace("models/", "") if self.model_name else "gemini-1.5-flash"
+                candidates = [curr_model, f"models/{curr_model}"]
+                
+                # Add broader fallback if current fails
+                if "flash" in curr_model: candidates.append("gemini-1.5-pro")
                 
                 response = None
                 last_error = None
@@ -150,43 +146,16 @@ class LLMGenerator:
                         print(f"DEBUG: Enviando lote a Gemini ({model_name})...")
                         model = genai.GenerativeModel(model_name=model_name)
                         response = model.generate_content(prompt)
-                        if response:
+                        if response and response.text:
+                            content = response.text
                             break
                     except Exception as e:
-                        error_str = str(e).lower()
                         last_error = e
-                        if "429" in error_str or "quota" in error_str:
-                            print(f"DEBUG: Quota hit for {model_name}, waiting...")
-                            time.sleep(3)
+                        print(f"DEBUG: Fallo Gemini {model_name}: {e}")
                         continue
                 
-                if not response:
-                    # Specific message for Google API Quota
-                    if "429" in str(last_error) or "quota" in str(last_error).lower():
-                        raise Exception("Límite de cuota de Google Gemini alcanzado (Free Tier). Por favor, intenta generar menos preguntas a la vez o espera 60 segundos para que se reinicie tu ventana de peticiones por minuto.")
-                    
-                    # Final fallback to OpenAI if available
-                    if self.openai_client and self.provider != "gemini": # only if it's a multi-provider context
-                        response_oa = self.openai_client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[{"role": "user", "content": prompt}],
-                            response_format={"type": "json_object"}
-                        )
-                        content = response_oa.choices[0].message.content
-                    else:
-                        raise Exception(f"Fallo en generación Gemini del lote: {last_error}")
-
-                try:
-                    if not content:
-                        content = response.text
-                except Exception:
-                    if hasattr(response, 'candidates') and response.candidates:
-                         try:
-                             content = response.candidates[0].content.parts[0].text
-                         except:
-                             raise Exception("La IA bloqueó la respuesta del lote por seguridad.")
-                    else:
-                        raise Exception("No se pudo obtener texto de la respuesta del lote.")
+                if not content:
+                    raise Exception(f"Gemini falló en todos los intentos. Último error: {last_error}")
 
                 # Cleanup markdown
                 if "```json" in content:
