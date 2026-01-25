@@ -10,6 +10,7 @@ from db.session import SessionLocal
 from db.models import Question
 from core.generators.llm import LLMGenerator
 from core.dedupe import compute_hash
+from core.config import get_api_key, save_api_key_local # NUEVO
 from ui_utils import load_css, render_header
 
 import pypdf
@@ -22,7 +23,6 @@ render_header(title="Generador de Preguntas con IA", subtitle="Crea material de 
 st.markdown("""
 <div class="dian-card">
     Aquí puedes usar inteligencia artificial para crear preguntas a partir de tus propios documentos.
-    <br><b>Nota:</b> Necesitas una API Key de OpenAI o Google Gemini.
 </div>
 """, unsafe_allow_html=True)
 
@@ -41,10 +41,25 @@ with st.expander("🔐 Configuración de API Key", expanded=True):
         st.session_state["current_model"] = model_name
         st.session_state["current_provider"] = provider
 
-    api_key_env = os.getenv(f"{provider.upper()}_API_KEY")
-    api_key = st.text_input(f"API Key {provider}", value=api_key_env if api_key_env else "", type="password")
+    # Usar el nuevo sistema de carga persistente
+    api_key_saved = get_api_key(provider)
+    col_key, col_save_btn = st.columns([0.8, 0.2])
     
-    st.caption("No guardamos tu llave. Se usa solo para esta sesión.")
+    with col_key:
+        api_key = st.text_input(f"API Key {provider}", value=api_key_saved, type="password")
+    
+    with col_save_btn:
+        st.write("<br>", unsafe_allow_html=True)
+        if st.button("💾 Guardar", help="Guardar esta llave permanentemente en tu PC"):
+            if api_key:
+                if save_api_key_local(provider, api_key):
+                    st.success("¡Guardada!")
+                else:
+                    st.error("Error al guardar")
+            else:
+                st.warning("Escribe una llave")
+    
+    st.caption("🔒 **Sincronización:** Las llaves se guardan en la base de datos central para que aparezcan automáticamente en tu móvil y PC. También se crea un respaldo local en `.env`.")
     if provider == "Groq":
         st.warning("⚠️ **Nota sobre Groq:** El nivel gratuito de Groq tiene límites diarios estrictos (TPD). Si recibes un error, te recomendamos usar **Gemini** (Google), que es más estable y generoso en sus cuotas gratuitas.")
 

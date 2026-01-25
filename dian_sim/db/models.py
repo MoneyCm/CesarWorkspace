@@ -74,3 +74,11 @@ class Skill(Base):
 
     # Unique constraint for track/competency/topic combination could be added via Index/UniqueConstraint
     # but for simplicity we'll handle uniqueness via application logic or add __table_args__
+
+class Configuration(Base):
+    __tablename__ = "configurations"
+    
+    id = Column(Integer, primary_key=True)
+    key_name = Column(String, unique=True, nullable=False)
+    value = Column(String, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
