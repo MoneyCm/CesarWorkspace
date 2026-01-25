@@ -62,19 +62,77 @@ if action == "Explorar / Bulk":
     with col_filters[3]:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.session_state["bulk_selection"]:
-            if st.button(f"🗑️ Borrar Seleccionados ({len(st.session_state['bulk_selection'])})", type="primary", use_container_width=True):
-                try:
-                    for qid in st.session_state["bulk_selection"]:
-                        q_to_del = db.query(Question).get(qid)
-                        if q_to_del:
-                            db.delete(q_to_del)
-                    db.commit()
-                    reset_selection()
-                    st.success("Preguntas eliminadas masivamente.")
-                    st.rerun()
-                except Exception as e:
-                    db.rollback()
-                    st.error(f"Error en borrado masivo: {e}")
+            col_del, col_down_ex, col_down_txt = st.columns([1, 1, 1])
+            
+            with col_del:
+                if st.button(f"🗑️ Borrar Seleccionados ({len(st.session_state['bulk_selection'])})", type="primary", use_container_width=True):
+                    try:
+                        for qid in st.session_state["bulk_selection"]:
+                            q_to_del = db.query(Question).get(qid)
+                            if q_to_del:
+                                db.delete(q_to_del)
+                        db.commit()
+                        reset_selection()
+                        st.success("Preguntas eliminadas masivamente.")
+                        st.rerun()
+                    except Exception as e:
+                        db.rollback()
+                        st.error(f"Error en borrado masivo: {e}")
+            
+            # Export Logic
+            selected_qs = db.query(Question).filter(Question.question_id.in_(list(st.session_state["bulk_selection"]))).all()
+            
+            if selected_qs:
+                # 1. Excel Export
+                export_data = []
+                for q in selected_qs:
+                    opts = q.options_json if q.options_json else {}
+                    export_data.append({
+                        'track': q.track,
+                        'competency': q.competency,
+                        'topic': q.topic,
+                        'difficulty': q.difficulty,
+                        'stem': q.stem,
+                        'options_A': opts.get('A', ''),
+                        'options_B': opts.get('B', ''),
+                        'options_C': opts.get('C', ''),
+                        'options_D': opts.get('D', ''),
+                        'correct_key': q.correct_key,
+                        'rationale': q.rationale
+                    })
+                df_exp = pd.DataFrame(export_data)
+                topo_ex = io.BytesIO()
+                with pd.ExcelWriter(topo_ex, engine='openpyxl') as writer:
+                    df_exp.to_excel(writer, index=False)
+                
+                with col_down_ex:
+                    st.download_button(
+                        "📥 Descargar Excel",
+                        data=topo_ex.getvalue(),
+                        file_name=f"Seleccion_Preguntas_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                
+                # 2. Text Export
+                lines = ["track|competency|topic|stem|options_A|options_B|options_C|options_D|correct_key|rationale|difficulty"]
+                for d in export_data:
+                    line = "|".join([
+                        str(d['track']), str(d['competency']), str(d['topic']), 
+                        str(d['stem']).replace("\n", " "), 
+                        str(d['options_A']), str(d['options_B']), str(d['options_C']), str(d['options_D']),
+                        str(d['correct_key']), str(d['rationale']).replace("\n", " "), str(d['difficulty'])
+                    ])
+                    lines.append(line)
+                
+                with col_down_txt:
+                    st.download_button(
+                        "📄 Descargar Texto (|)",
+                        data="\n".join(lines),
+                        file_name=f"Seleccion_Preguntas_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
 
     # QUERY
     query = db.query(Question)

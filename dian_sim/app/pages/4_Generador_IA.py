@@ -33,8 +33,8 @@ with st.expander("🔐 Configuración de API Key", expanded=True):
     
     with col_model:
         models_map = {
-            "OpenAI": ["gpt-4o-mini", "gpt-4o"],
-            "Gemini": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+            "OpenAI": ["gpt-4o-mini", "gpt-3.5-turbo"],
+            "Gemini": ["gemini-1.5-flash", "gemini-1.5-pro"],
             "Groq": ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"]
         }
         model_name = st.selectbox("Modelo", models_map.get(provider, ["default"]))

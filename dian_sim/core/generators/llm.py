@@ -108,14 +108,19 @@ class LLMGenerator:
             if self.provider == "openai" and self.openai_client:
                 model = self.model_name if self.model_name else "gpt-4o-mini"
                 print(f"DEBUG: Enviando lote a OpenAI ({model})...")
-                response = self.openai_client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
-                    response_format={"type": "json_object"}
-                )
-                content = response.choices[0].message.content
+                try:
+                    response = self.openai_client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "user", "content": prompt}
+                        ],
+                        response_format={"type": "json_object"}
+                    )
+                    content = response.choices[0].message.content
+                except Exception as e:
+                    if "insufficient_quota" in str(e):
+                        raise Exception("❌ Saldo insuficiente en OpenAI. Por favor, recarga tu cuenta o usa Gemini/Groq (Gratuitos).")
+                    raise e
                 
             elif self.provider == "groq" and self.openai_client:
                 # Groq es extremadamente rápido con Llama 3
@@ -131,14 +136,23 @@ class LLMGenerator:
                 content = response.choices[0].message.content
                 
             elif self.provider == "gemini":
-                # Ensure model name is clean
-                curr_model = self.model_name.replace("models/", "") if self.model_name else "gemini-1.5-flash"
-                candidates = [curr_model, f"models/{curr_model}"]
+                # Stable Gemini Model Names with latest versions
+                candidates = [
+                    "gemini-1.5-flash-latest",
+                    "gemini-1.5-flash", 
+                    "gemini-1.5-pro-latest",
+                    "gemini-1.5-pro",
+                    "gemini-pro"
+                ]
+                # If specialized model requested, put it at the very beginning
+                if self.model_name:
+                    clean_name = self.model_name.replace("models/", "")
+                    # Ensure it's at index 0
+                    if clean_name in candidates:
+                        candidates.remove(clean_name)
+                    candidates.insert(0, clean_name)
                 
-                # Add broader fallback if current fails
-                if "flash" in curr_model: candidates.append("gemini-1.5-pro")
-                
-                response = None
+                content = ""
                 last_error = None
                 
                 # Relax security filters for technical legal content
@@ -159,13 +173,19 @@ class LLMGenerator:
                             break
                     except Exception as e:
                         last_error = e
-                        if "safety" in str(e).lower():
-                             print(f"⚠️ Aviso: Gemini bloqueó contenido por seguridad en {model_name}. Intentando otro...")
+                        err_str = str(e).lower()
+                        if "404" in err_str:
+                             print(f"⚠️ El modelo {model_name} no está disponible, intentando siguiente...")
+                             continue
+                        if "safety" in err_str:
+                             print(f"⚠️ Aviso: Gemini bloqueó contenido por seguridad en {model_name}.")
                         print(f"DEBUG: Fallo Gemini {model_name}: {e}")
                         continue
                 
                 if not content:
-                    raise Exception(f"Gemini falló en todos los intentos. Último error: {last_error}")
+                    if "quota" in str(last_error).lower() or "429" in str(last_error):
+                        raise Exception("❌ Cuota de Gemini agotada (Límite por minuto). Prueba de nuevo en 60 segundos o usa Groq.")
+                    raise Exception(f"Gemini falló: {last_error}")
 
                 # Cleanup markdown
                 if "```json" in content:
