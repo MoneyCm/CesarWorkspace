@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from db.session import SessionLocal
 from db.models import Skill, Attempt, Achievement, UserStats
 from ui_utils import load_css, render_header
-import datetime
+import datetime, io
 
 st.set_page_config(page_title="Dashboard | DIAN Sim", page_icon="📊", layout="wide")
 load_css()
@@ -156,15 +156,23 @@ with col_exp1:
         from db.models import Question
         all_qs = db.query(Question).all()
         if all_qs:
-            df_export = pd.DataFrame([{
-                'track': q.track,
-                'competency': q.competency,
-                'topic': q.topic,
-                'difficulty': q.difficulty,
-                'stem': q.stem,
-                'correct_key': q.correct_key,
-                'rationale': q.rationale
-            } for q in all_qs])
+            export_data = []
+            for q in all_qs:
+                opts = q.options_json if q.options_json else {}
+                export_data.append({
+                    'track': q.track,
+                    'competency': q.competency,
+                    'topic': q.topic,
+                    'difficulty': q.difficulty,
+                    'stem': q.stem,
+                    'options_A': opts.get('A', ''),
+                    'options_B': opts.get('B', ''),
+                    'options_C': opts.get('C', ''),
+                    'options_D': opts.get('D', ''),
+                    'correct_key': q.correct_key,
+                    'rationale': q.rationale
+                })
+            df_export = pd.DataFrame(export_data)
             
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:

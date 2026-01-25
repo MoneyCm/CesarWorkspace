@@ -30,10 +30,14 @@ def validate_import_df(df: pd.DataFrame):
         row_num = index + 2 # Excel starts at 1, +1 for header
         
         # Campos que no pueden ser nulos
-        critical_fields = ['track', 'stem', 'correct_key', 'options_A', 'options_B', 'options_C', 'options_D']
+        critical_fields = ['track', 'stem', 'correct_key', 'options_A', 'options_B', 'options_C']
         for field in critical_fields:
             if pd.isna(row[field]) or str(row[field]).strip() == "":
                 errors.append(f"Fila {row_num}: El campo '{field}' está vacío.")
+        
+        # Opciones D es opcional (algunas IAs generan 3 opciones)
+        if 'options_D' in row and not pd.isna(row['options_D']) and str(row['options_D']).strip() != "":
+            pass # Válido
         
         # Validar llave de respuesta
         if not pd.isna(row['correct_key']):
