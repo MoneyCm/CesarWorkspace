@@ -121,7 +121,7 @@ with col1:
     st.info("💡 Todas las preguntas generadas serán **SITUACIONALES** (casos prácticos) para cumplir con el estándar de evaluación de la DIAN.")
     st.caption("💎 **Tip Pro:** Si usas Gemini Free Tier, intenta generar lotes de **5 a 10 preguntas** a la vez para evitar bloqueos por cuota de tokens.")
     
-    generate_btn = st.button("✨ Generar Preguntas", disabled=(not source_text or not api_key), type="primary")
+    generate_btn = st.button("✨ Generar Preguntas", type="primary", use_container_width=True)
 
 # Helper to get info
 def get_db_info():
@@ -130,7 +130,7 @@ def get_db_info():
         db = SessionLocal()
         count = db.query(Question).count()
         db.close()
-        db_type = "Cloud (Supabase)" if "supabase" in DATABASE_URL.lower() else "Local (SQLite)"
+        db_type = "Cloud (Supabase)" if "postgres" in DATABASE_URL.lower() else "Local (SQLite)"
         return count, db_type
     except Exception as e:
         return 0, f"Error: {e}"
@@ -145,9 +145,14 @@ st.sidebar.markdown(f"""
 """, unsafe_allow_html=True)
 
 if generate_btn:
-    with st.spinner("Analizando texto y creando preguntas... (Esto puede tardar unos segundos)"):
-        try:
-            generator = LLMGenerator(provider, api_key, model_name=model_name)
+    if not api_key:
+        st.error("🔑 Falta la API Key. Por favor, ingrésala en la sección de configuración arriba.")
+    elif not source_text or len(source_text) < 10:
+        st.warning("📋 El texto de origen está vacío o es muy corto. Pega algún contenido o sube un archivo para generar preguntas.")
+    else:
+        with st.spinner("Analizando texto y creando preguntas... (Esto puede tardar unos segundos)"):
+            try:
+                generator = LLMGenerator(provider, api_key, model_name=model_name)
             results = generator.generate_from_text(source_text, num_q, difficulty=difficulty_value)
             
             # Apply Custom Topic Override
