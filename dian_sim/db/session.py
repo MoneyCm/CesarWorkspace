@@ -21,14 +21,20 @@ if raw_url.startswith("postgresql://"):
 
 DATABASE_URL = raw_url
 
-print(f"DEBUG: Connecting to database at: {DATABASE_URL}")
-
 engine = create_engine(
     DATABASE_URL, 
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
     pool_pre_ping=True,  # Crucial for cloud databases like Supabase
     pool_recycle=300     # Recycle connections every 5 minutes
 )
+
+# --- AUTO-CREACIÓN DE TABLAS ---
+from db.models import Base
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception:
+    pass 
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
