@@ -153,42 +153,46 @@ if submitted_profile and selected_profile_name:
     num_questions = num_questions_profile
 
 if run_sim:
-    db = get_db()
-    
-    # 1. Fetch Candidates
-    query = db.query(Question)
-    
-    if final_query_filters.get("tracks"):
-        query = query.filter(Question.track.in_(final_query_filters["tracks"]))
-    if final_query_filters.get("competencies"):
-        query = query.filter(Question.competency.in_(final_query_filters["competencies"]))
-    if final_query_filters.get("topics"):
-        query = query.filter(Question.topic.in_(final_query_filters["topics"]))
-    if final_query_filters.get("difficulties"):
-        query = query.filter(Question.difficulty.in_(final_query_filters["difficulties"]))
-    if final_query_filters.get("only_situational"):
-        query = query.filter(Question.stem.ilike("%SITUACIÓN%"))
-    
-    all_candidates = query.all()
-    
-    # 2. Fetch Skills for Adaptive Logic
-    skills = db.query(Skill).all()
-    skills_map = {(s.track, s.competency, s.topic): s for s in skills}
-    
-    # 3. Select Questions
-    selected = select_questions_for_simulation(all_candidates, skills_map, n=num_questions)
-    
-    if not selected:
-        st.error("No hay preguntas disponibles con estos criterios.")
-    else:
-        # Initialize Exam Session State
-        st.session_state["exam_mode"] = True
-        st.session_state["exam_questions"] = [q.question_id for q in selected] # Store IDs
-        st.session_state["current_idx"] = 0
-        st.session_state["answers"] = {} # {q_id: chosen_key}
-        st.session_state["hardcore_mode"] = final_query_filters.get("hardcore", False)
+    try:
+        db = get_db()
         
-        st.switch_page("pages/2_Ejecucion.py") # Use switch_page directly instead of rerun loop logic
+        # 1. Fetch Candidates
+        query = db.query(Question)
+        
+        if final_query_filters.get("tracks"):
+            query = query.filter(Question.track.in_(final_query_filters["tracks"]))
+        if final_query_filters.get("competencies"):
+            query = query.filter(Question.competency.in_(final_query_filters["competencies"]))
+        if final_query_filters.get("topics"):
+            query = query.filter(Question.topic.in_(final_query_filters["topics"]))
+        if final_query_filters.get("difficulties"):
+            query = query.filter(Question.difficulty.in_(final_query_filters["difficulties"]))
+        if final_query_filters.get("only_situational"):
+            query = query.filter(Question.stem.ilike("%SITUACIÓN%"))
+        
+        all_candidates = query.all()
+        
+        # 2. Fetch Skills for Adaptive Logic
+        skills = db.query(Skill).all()
+        skills_map = {(s.track, s.competency, s.topic): s for s in skills}
+        
+        # 3. Select Questions
+        selected = select_questions_for_simulation(all_candidates, skills_map, n=num_questions)
+        
+        if not selected:
+            st.error("No hay preguntas disponibles con estos criterios.")
+        else:
+            # Initialize Exam Session State
+            st.session_state["exam_mode"] = True
+            st.session_state["exam_questions"] = [q.question_id for q in selected] # Store IDs
+            st.session_state["current_idx"] = 0
+            st.session_state["answers"] = {} # {q_id: chosen_key}
+            st.session_state["hardcore_mode"] = final_query_filters.get("hardcore", False)
+            
+            st.switch_page("pages/2_Ejecucion.py")
+    except Exception as e:
+        st.error(f"⚠️ Error al preparar el simulacro: {e}")
+        st.info("Es posible que la base de datos se esté sincronizando con el nuevo Protocolo 2667. Intenta de nuevo en unos segundos.")
 
 # If logic for exam is running (legacy check, but kept for safety)
 if st.session_state.get("exam_mode"):

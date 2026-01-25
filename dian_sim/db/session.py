@@ -33,21 +33,26 @@ engine = create_engine(
 from db.models import Base
 from sqlalchemy import text
 try:
+    # 1. Ensure tables exist
     Base.metadata.create_all(bind=engine)
     
-    # Proactive migration for cloud databases (PostgreSQL)
-    if "postgres" in DATABASE_URL:
-        with engine.connect() as conn:
-            # Migration for Questions
+    # 2. Force Migration for cloud databases
+    if "postgres" in DATABASE_URL.lower():
+        print("🔍 Database: PostgreSQL detected. Checking for migrations...")
+        with engine.begin() as conn:  # engine.begin() automatically commits
+            # Questions Table
             conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
             conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
-            # Migration for Skills (to keep taxonomy)
+            # Skills Table
             conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_dominio VARCHAR;"))
             conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS micro_competencia VARCHAR;"))
-            conn.commit()
-            print("✅ Database migration successful.")
+            print("✅ Database migration: Columns verified/added successfully.")
+    else:
+        print(f"ℹ️ Database: Local SQLite or other ({DATABASE_URL[:20]}...). Skipping Postgres migrations.")
+
 except Exception as e:
-    print(f"⚠️ Database Notice: {e}")
+    # In Streamlit Cloud, this will show up in the Logs (Manage App -> Logs)
+    print(f"❌ DATABASE MIGRATION ERROR: {e}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
