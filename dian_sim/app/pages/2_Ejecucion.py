@@ -12,59 +12,79 @@ from ui_utils import load_css, render_header
 # --- v2.2: Exam Termination Function ---
 def finalize_exam(db, q_ids, answers_dict):
     """Processes all answers and saves to DB."""
-    correct_count = 0
-    total_q = len(q_ids)
-    
-    for qid in q_ids:
-        q_obj = db.query(Question).get(qid)
-        key_chosen = answers_dict.get(qid, "NONE")
+    try:
+        correct_count = 0
+        total_q = len(q_ids)
+        eje_results = {} # {"FUNCIONAL": [correct, total], ...}
         
-        is_right = (key_chosen == q_obj.correct_key)
-        if is_right:
-            correct_count += 1
+        for qid in q_ids:
+            q_obj = db.query(Question).get(qid)
+            key_chosen = answers_dict.get(qid, "NONE")
             
-        # Create Attempt
-        att = Attempt(
-            question_id=qid,
-            chosen_key=key_chosen,
-            is_correct=is_right,
-            created_at=datetime.datetime.utcnow()
-        )
-        db.add(att)
-        
-        # Update Skills (Simplified for speed)
-        skill = db.query(Skill).filter_by(track=q_obj.track, competency=q_obj.competency, topic=q_obj.topic).first()
-        if not skill:
-            skill = Skill(track=q_obj.track, competency=q_obj.competency, topic=q_obj.topic, mastery_score=0.0, priority_weight=1.0)
-            db.add(skill)
-            db.flush()
-        
-        skill.mastery_score = calculate_mastery_update(is_right, skill.mastery_score)
-        skill.priority_weight = update_priority(skill.priority_weight, is_right)
-        skill.last_seen = datetime.datetime.utcnow()
-    
-    # Update Gamification
-    stats, points_earned, new_achievements, rank_up = update_user_stats(db, datetime.date.today(), correct_count, total_q)
-    db.commit()
-    
-    # Store results for next page
-    st.session_state["exam_mode"] = False
-    st.session_state["last_results"] = {
-        "total": total_q,
-        "correct": correct_count,
-        "score": (correct_count / total_q) * 100 if total_q > 0 else 0,
-        "q_ids": q_ids,
-        "points_earned": points_earned,
-        "new_streak": stats.current_streak,
-        "rank_up": rank_up,
-        "new_achievements": [a.name for a in new_achievements]
-    }
-    return True
+            is_right = (key_chosen == q_obj.correct_key)
+            if is_right:
+                correct_count += 1
+                
+            # Track by Eje for weighting
+            track = q_obj.track or "FUNCIONAL"
+            if track not in eje_results:
+                eje_results[track] = [0, 0]
+            eje_results[track][1] += 1
+            if is_right:
+                eje_results[track][0] += 1
 
-# --- v2.1 NEW: Automatic Timer Setup ---
+            # Create Attempt
+            att = Attempt(
+                question_id=qid,
+                chosen_key=key_chosen,
+                is_correct=is_right,
+                created_at=datetime.datetime.utcnow()
+            )
+            db.add(att)
+            
+            # Update Skills
+            skill = db.query(Skill).filter_by(track=q_obj.track, competency=q_obj.competency, topic=q_obj.topic).first()
+            if not skill:
+                skill = Skill(track=q_obj.track, competency=q_obj.competency, topic=q_obj.topic, mastery_score=0.0, priority_weight=1.0)
+                db.add(skill)
+                db.flush()
+            
+            skill.mastery_score = calculate_mastery_update(is_right, skill.mastery_score)
+            skill.priority_weight = update_priority(skill.priority_weight, is_right)
+            skill.last_seen = datetime.datetime.utcnow()
+        
+        # Breakdown into dict of tuples for update_user_stats
+        breakdown = {k: (v[0], v[1]) for k,v in eje_results.items()}
+        
+        # Update Gamification with official weighting
+        stats, points_earned, new_achievements, rank_up, is_passed = update_user_stats(db, datetime.date.today(), correct_count, total_q, eje_breakdown=breakdown)
+        db.commit()
+        
+        # Store results for next page
+        st.session_state["exam_mode"] = False
+        st.session_state["last_results"] = {
+            "total": total_q,
+            "correct": correct_count,
+            "score": (correct_count / total_q) * 100 if total_q > 0 else 0,
+            "q_ids": q_ids,
+            "points_earned": points_earned,
+            "new_streak": stats.current_streak,
+            "rank_up": rank_up,
+            "is_passed": is_passed,
+            "new_achievements": [a.name for a in new_achievements],
+            "breakdown": breakdown
+        }
+        return True
+    except Exception as e:
+        db.rollback()
+        st.error(f"❌ Error al guardar resultados: {e}")
+        return False
+
+# --- UI Setup ---
 if "exam_start_time" not in st.session_state:
     st.session_state["exam_start_time"] = time.time()
     st.session_state["tutor_explanation"] = None
+    st.session_state["last_answer_time"] = time.time()
 
 st.set_page_config(page_title="Simulacro en Curso", page_icon="📝", layout="wide", initial_sidebar_state="collapsed")
 load_css()
@@ -102,22 +122,26 @@ question = db.query(Question).filter(Question.question_id == current_q_id).first
 
 # --- v2.0 NEW: Chronometer / Timer ---
 if "total_time_limit" not in st.session_state:
-    st.session_state["total_time_limit"] = 60 * total_q # 1 min per question
+    # GOA Rule: 2.5 minutes per situational question
+    st.session_state["total_time_limit"] = 150 * total_q 
 
 # Calculate real-time remaining
 elapsed = time.time() - st.session_state.get("exam_start_time", time.time())
 time_left = max(0, int(st.session_state["total_time_limit"] - elapsed))
+
+# Hardcore Mode Check
+is_hardcore = st.session_state.get("hardcore_mode", False)
 
 # Progress Area
 with st.container():
     col_prog1, col_prog2 = st.columns([3, 1])
     with col_prog1:
         progress = (current_idx / total_q)
-        st.progress(progress, text=f"Progreso: {int(progress*100)}%")
+        label = "🚨 MODO REALISTA (HARDCORE)" if is_hardcore else f"Progreso: {int(progress*100)}%"
+        st.progress(progress, text=label)
     with col_prog2:
         # --- JS DYNAMIC CHRONOMETER ---
-        # This runs in the browser, making it fluid 1s update
-        color = "#D90000" if time_left < (total_q * 10) else "#ffa500"
+        color = "#D90000" if time_left < (total_q * 20) else "#ffa500"
         
         st.markdown(f"""
         <div class="floating-timer" id="timer-container" style='
@@ -132,7 +156,6 @@ with st.container():
             z-index: 9999;
             text-align: center;
             min-width: 120px;
-            transition: all 0.3s ease;
         '>
             <span style='font-size:0.7rem; color:#666; font-weight: bold; text-transform: uppercase;'>Tiempo Restante</span><br>
             <div id="countdown" style='font-size:1.8rem; font-weight:800; color:{color}; font-family: monospace;'>
@@ -206,7 +229,7 @@ if time_left <= 0:
 
 # Question Card
 st.markdown('<div class="dian-card">', unsafe_allow_html=True)
-st.caption(f"Eje: {question.track} | Competencia: {question.competency}")
+st.caption(f"Eje: {question.track} | Macro: {question.macro_dominio or 'General'}")
 st.markdown(f"### {question.topic}")
 
 # Format situational questions
@@ -218,35 +241,14 @@ if "SITUACIÓN:" in stem_text and "PREGUNTA:" in stem_text:
         q_part = parts[1].strip()
         
         st.markdown(f"""
-        <div style="
-            background: rgba(230, 0, 0, 0.03);
-            border-left: 6px solid var(--dian-red);
-            padding: 24px;
-            border-radius: 4px 20px 20px 4px;
-            margin-bottom: 24px;
-            backdrop-filter: blur(5px);
-        ">
-            <div style="
-                color: var(--dian-red);
-                text-transform: uppercase;
-                font-size: 0.75rem;
-                font-weight: 800;
-                letter-spacing: 0.1em;
-                margin-bottom: 12px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            ">
+        <div style="background: rgba(230, 0, 0, 0.03); border-left: 6px solid var(--dian-red); padding: 24px; border-radius: 4px 20px 20px 4px; margin-bottom: 24px; backdrop-filter: blur(5px);">
+            <div style="color: var(--dian-red); text-transform: uppercase; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                 <span style="background: var(--dian-red); width: 8px; height: 8px; border-radius: 50%;"></span>
-                Caso / Situación Legal
+                Caso / Situación Laboral
             </div>
-            <div style="font-size: 1.1rem; line-height: 1.7; color: #334155;">
-                {sit_part}
-            </div>
+            <div style="font-size: 1.1rem; line-height: 1.7; color: #334155;">{sit_part}</div>
         </div>
-        <div class='question-stem'>
-            {q_part}
-        </div>
+        <div class='question-stem'>{q_part}</div>
         """, unsafe_allow_html=True)
     except:
         st.markdown(f"<div class='question-stem'>{stem_text}</div>", unsafe_allow_html=True)
@@ -254,7 +256,7 @@ else:
     st.markdown(f"<div class='question-stem'>{stem_text}</div>", unsafe_allow_html=True)
 
 # Options
-options = question.options_json # Dict
+options = question.options_json 
 opts_keys = list(options.keys())
 opts_values = [f"{k}) {v}" for k,v in options.items()]
 
@@ -262,7 +264,7 @@ opts_values = [f"{k}) {v}" for k,v in options.items()]
 existing_ans = st.session_state["answers"].get(current_q_id)
 index_ans = opts_keys.index(existing_ans) if existing_ans else None
 
-selected_val = st.radio("Selecciona tu respuesta:", opts_values, index=index_ans, key=f"q_{current_idx}")
+selected_val = st.radio("Selecciona la mejor respuesta:", opts_values, index=index_ans, key=f"q_{current_idx}")
 
 st.markdown('</div>', unsafe_allow_html=True) # End Card
 
@@ -271,40 +273,46 @@ col1, col2, col3 = st.columns([1, 4, 1])
 
 with col1:
         if st.button("⬅️ Anterior", use_container_width=True):
-            st.session_state["current_idx"] -= 1
+            st.session_state["current_idx"] = max(0, st.session_state["current_idx"] - 1)
             st.session_state["tutor_explanation"] = None # Clear tutor on change
             st.rerun()
 
 with col2:
     # --- v2.0 NEW: IA Tutor Button ---
-    if st.button("🤖 Tutor IA (Socrático)", use_container_width=True, help="El tutor te guiará para encontrar la respuesta sin regalártela."):
-        with st.spinner("El tutor está analizando el caso..."):
-            try:
-                # Get provider and key from secrets (Cloud) or env (Local)
-                import os
-                provider = st.secrets.get("DEFAULT_PROVIDER", os.getenv("DEFAULT_PROVIDER", "gemini")).lower()
-                api_key = st.secrets.get(f"{provider.upper()}_API_KEY", os.getenv(f"{provider.upper()}_API_KEY"))
-                
-                if api_key:
-                    gen = LLMGenerator(provider, api_key)
-                    # Use the new explain_question method
-                    q_data = {
-                        "stem": question.stem,
-                        "options_json": question.options_json,
-                        "correct_key": question.correct_key,
-                        "rationale": question.rationale
-                    }
-                    st.session_state["tutor_explanation"] = gen.explain_question(q_data)
-                else:
-                    st.warning("⚠️ Configura una API Key (Gemini, OpenAI o Groq) para usar el Tutor.")
-            except Exception as e:
-                st.error(f"Error del Tutor: {e}")
+    if not is_hardcore:
+        if st.button("🤖 Tutor IA (Socrático)", use_container_width=True, help="El tutor te guiará para encontrar la respuesta sin regalártela."):
+            with st.spinner("Analizando..."):
+                try:
+                    # Get provider and key from secrets (Cloud) or env (Local)
+                    import os
+                    provider = st.secrets.get("DEFAULT_PROVIDER", os.getenv("DEFAULT_PROVIDER", "gemini")).lower()
+                    api_key = st.secrets.get(f"{provider.upper()}_API_KEY", os.getenv(f"{provider.upper()}_API_KEY"))
+                    
+                    if api_key:
+                        from core.generators.llm import LLMGenerator
+                        gen = LLMGenerator(provider, api_key)
+                        # Use the new explain_question method
+                        q_data = {
+                            "stem": question.stem,
+                            "options_json": question.options_json,
+                            "correct_key": question.correct_key,
+                            "rationale": question.rationale
+                        }
+                        st.session_state["tutor_explanation"] = gen.explain_question(q_data)
+                    else:
+                        st.warning("⚠️ API Key no configurada.")
+                except Exception as e:
+                    st.error(f"Error del Tutor: {e}")
 
-    if st.session_state["tutor_explanation"]:
+    if st.session_state.get("tutor_explanation"):
         st.info(st.session_state["tutor_explanation"])
 
 
 with col3:
+    # Speed Alert Logic
+    current_time = time.time()
+    time_spent = current_time - st.session_state.get("last_answer_time", current_time)
+    
     # Save current selection
     if selected_val:
         selected_key = selected_val.split(")")[0] # Extract "A" from "A) Text"
@@ -312,11 +320,14 @@ with col3:
 
     if current_idx < total_q - 1:
         if st.button("Siguiente ➡️", type="primary", use_container_width=True):
+            if time_spent < 45 and not is_hardcore: # Warning if too fast
+                st.toast("⚠️ Estás respondiendo muy rápido. El análisis situacional requiere más tiempo.", icon="⏱️")
             st.session_state["current_idx"] += 1
+            st.session_state["last_answer_time"] = time.time()
+            st.session_state["tutor_explanation"] = None
             st.rerun()
     else:
-        # Show "Ver Resultados" if time is up, otherwise "Finalizar"
-        finish_label = "🏁 Finalizar Examen" if time_left > 0 else "⌛ Tiempo Agotado - Ver Resultados"
+        finish_label = "🏁 Finalizar" if time_left > 0 else "⌛ Resultados"
         if st.button(finish_label, type="primary", use_container_width=True, key="finish_btn_manual"):
             if finalize_exam(db, q_ids, st.session_state["answers"]):
                 db.close()

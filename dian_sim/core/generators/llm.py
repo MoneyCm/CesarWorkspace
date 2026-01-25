@@ -60,19 +60,23 @@ class LLMGenerator:
         context = text[:10000]
         
         prompt = f"""
-        Actúa como un experto generador de preguntas de examen para la DIAN (Dirección de Impuestos y Aduanas Nacionales de Colombia).
-        Basándote en el siguiente texto, genera EXACTAMENTE {count} preguntas de selección múltiple con un nivel de DIFICULTAD: {difficulty} (donde 1=Básico, 2=Intermedio, 3=Avanzado).
+        Actúa como un Experto Constructor de Ítems de la CNSC para los procesos de selección de la DIAN.
+        Tu misión es generar EXACTAMENTE {count} preguntas de selección múltiple con un nivel de DIFICULTAD: {difficulty} (1=Básico, 2=Intermedio, 3=Avanzado).
 
-        REQUISITO CRÍTICO - PREGUNTAS SITUACIONALES: 
-        DEBES crear situaciones de la vida real o casos hipotéticos. NO hagas preguntas que se respondan con solo recordar una definición. El usuario debe ANALIZAR y APLICAR el conocimiento al caso planteado.
+        REQUISITOS METODOLÓGICOS (Protocolo GOA 2667 - Estándar CNSC):
+        1. ESTRUCTURA DE JUICIO SITUACIONAL: 
+           - CASO (Contexto): Un párrafo de 80-120 palabras que describa una situación laboral REALISTA en la DIAN. Incluye variables técnicas y distractores contextuales (ruido).
+           - ENUNCIADO (Stem): Una pregunta que cierre el caso (ej: "Ante este escenario, la acción correcta del gestor es..."). debe estar integrado al final del caso.
+        2. OPCIONES DE RESPUESTA: DEBEN SER EXACTAMENTE TRES (3). A, B y C. No generes opción D.
+        3. CALIDAD DE OPCIONES:
+           - Clave: La respuesta técnica o conductualmente correcta según la norma.
+           - Distractor 1: Opción plausible pero que omite un requerimiento legal o paso procedimental.
+           - Distractor 2: Opción que parece eficiente/rápida pero viola la norma o el protocolo ético.
+        4. TAXONOMÍA OBLIGATORIA:
+           - Macro-Dominio: Clasifica en (Tributario, Aduanero, Cambiario, Transversal, Comportamental, Integridad).
+           - Micro-Competencia: Identifica el tema específico (ej: "Procedimiento de Cobro", "Régimen Simple", "Adaptabilidad").
 
-        EJEMPLO DE FORMATO DESEADO:
-        - STEM: "SITUACIÓN: Un contribuyente presenta su declaración fuera de término alegando fallas técnicas, pero no hay reporte de contingencia oficial. PREGUNTA: ¿Cuál es el procedimiento que usted, como gestor de impuestos, debe aplicar?"
-        - OPCIONES: {{"A": "Sanción por extemporaneidad según el Estatuto.", "B": "Aceptar la justificación sin pruebas.", "C": "Anular la declaración sin previo aviso."}}
-
-        IDIOMA OBLIGATORIO: ESPAÑOL.
-        
-        TEXTO A ANALIZAR:
+        TEXTO DE REFERENCIA (Inyecta este contenido en los casos):
         "{context}..."
         
         FORMATO DE SALIDA (Objeto JSON obligatorio):
@@ -80,22 +84,23 @@ class LLMGenerator:
           "questions": [
             {{
               "track": "FUNCIONAL | COMPORTAMENTAL | INTEGRIDAD",
-              "competency": "nombre de la competencia",
-              "topic": "tema específico",
+              "macro_dominio": "Macro-Dominio detectado",
+              "micro_competencia": "Micro-Competencia detectada",
+              "topic": "tema resumido",
               "difficulty": {difficulty},
-              "stem": "SITUACIÓN: [Caso detallado]. PREGUNTA: [Enunciado táctico]...",
+              "stem": "SITUACIÓN: [Caso de 80-120 palabras]. PREGUNTA: [Enunciado táctico]?",
               "options": {{
-                "A": "Acción/Respuesta A",
-                "B": "Acción/Respuesta B",
-                "C": "Acción/Respuesta C"
+                "A": "Opción 1",
+                "B": "Opción 2",
+                "C": "Opción 3"
               }},
-              "correct_key": "A",
-              "rationale": "Justificación técnica basada específicamente en la norma aplicada al caso..."
+              "correct_key": "Letra correcta",
+              "rationale": "Justificación basada en el Artículo [X] del Estatuto Tributario o norma específica aplicada al caso."
             }}
           ]
         }}
         
-        IMPORTANTE: No respondas con nada que no sea el JSON. Asegúrate de que el campo 'stem' SIEMPRE empiece con 'SITUACIÓN:'.
+        IMPORTANTE: No respondas con nada que no sea el JSON. La densidad léxica debe ser técnica (Acto Administrativo, Título Ejecutivo, Sujeto Pasivo, etc.).
         """
         
         try:
@@ -225,7 +230,9 @@ class LLMGenerator:
                 q_dict = {
                     "question_id": str(uuid.uuid4()),
                     "track": item.get("track", "FUNCIONAL"),
-                    "competency": item.get("competency", "General"),
+                    "macro_dominio": item.get("macro_dominio", "Transversal"),
+                    "micro_competencia": item.get("micro_competencia", item.get("competency", "General")),
+                    "competency": item.get("competency", item.get("micro_competencia", "General")),
                     "topic": item.get("topic", "Generado por IA"),
                     "difficulty": item.get("difficulty", difficulty),
                     "stem": item.get("stem"),

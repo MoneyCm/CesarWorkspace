@@ -29,6 +29,15 @@ engine = create_engine(
     pool_pre_ping=True,  # Crucial for cloud databases like Supabase
     pool_recycle=300     # Recycle connections every 5 minutes
 )
+
+# Auto-create tables in the database (Supabase/Postgres/SQLite)
+from db.models import Base
+try:
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables confirmed/created.")
+except Exception as e:
+    print(f"❌ Error creating tables: {e}")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():

@@ -5,8 +5,11 @@ import uuid
 
 from core.rank_system import get_rank_info
 
-def update_user_stats(db: Session, last_session_date: datetime.date, correct_count: int, total_questions: int):
-    """Actualiza puntos y rachas del usuario."""
+def update_user_stats(db: Session, last_session_date: datetime.date, correct_count: int, total_questions: int, eje_breakdown: dict = None):
+    """
+    Actualiza puntos y rachas del usuario aplicando pesos GOA:
+    Funcional (60%), Comportamental (20%), Integridad (20%)
+    """
     stats = db.query(UserStats).first()
     if not stats:
         stats = UserStats(current_streak=0, max_streak=0, total_points=0, last_activity=datetime.datetime.utcnow())
@@ -27,8 +30,34 @@ def update_user_stats(db: Session, last_session_date: datetime.date, correct_cou
     if stats.current_streak > stats.max_streak:
         stats.max_streak = stats.current_streak
 
-    # Lógica de Puntos (10 pts por acierto + bono por racha)
-    session_points = correct_count * 10
+    # Ponderación GOA 2667
+    # Si no hay desglose, asumimos proporcionalidad simple
+    if not eje_breakdown:
+        # Fallback para sesiones mixtas sin tags precisos
+        score_percentage = (correct_count / total_questions) * 100 if total_questions > 0 else 0
+        is_passed = score_percentage >= 70
+        session_points = correct_count * 10 
+    else:
+        # Cálculo Realista por Pesos
+        # eje_breakdown = {"FUNCIONAL": (correct, total), ...}
+        total_weighted = 0.0
+        
+        # Funcional (60%)
+        f_c, f_t = eje_breakdown.get("FUNCIONAL", (0, 0))
+        f_score = (f_c / f_t * 60) if f_t > 0 else 0
+        is_passed = (f_c / f_t * 100 >= 70) if f_t > 0 else True # Eliminatorio
+        
+        # Comportamental (20%)
+        c_c, c_t = eje_breakdown.get("COMPORTAMENTAL", (0, 0))
+        c_score = (c_c / c_t * 20) if c_t > 0 else 0
+        
+        # Integridad (20%)
+        i_c, i_t = eje_breakdown.get("INTEGRIDAD", (0, 0))
+        i_score = (i_c / i_t * 20) if i_t > 0 else 0
+        
+        total_weighted = f_score + c_score + i_score
+        session_points = int(total_weighted * 2) # Factor de puntos ajustable
+
     if stats.current_streak > 1:
         session_points += (stats.current_streak * 5)
         
@@ -43,7 +72,7 @@ def update_user_stats(db: Session, last_session_date: datetime.date, correct_cou
     
     db.commit()
     
-    return stats, session_points, new_achievements, (new_rank['name'] if new_rank['name'] != old_rank['name'] else None)
+    return stats, session_points, new_achievements, (new_rank['name'] if new_rank['name'] != old_rank['name'] else None), is_passed
 
 def check_new_achievements(db: Session, stats: UserStats, correct_count: int, total_questions: int):
     """Verifica y desbloquea nuevos logros."""

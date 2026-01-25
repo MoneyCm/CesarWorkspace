@@ -35,16 +35,17 @@ st.divider()
 
 # 2. Mapa de Calor / Progreso por Eje
 st.markdown('<div class="dian-card">', unsafe_allow_html=True)
-st.subheader("🎯 Nivel de Dominio por Eje")
+st.subheader("🎯 Nivel de Dominio por Eje (Metodología CNSC)")
 skills = db.query(Skill).all()
 if skills:
     df_skills = pd.DataFrame([{
         'Eje': s.track,
-        'Competencia': s.competency,
+        'Macro-Dominio': s.macro_dominio if hasattr(s, 'macro_dominio') and s.macro_dominio else "Transversal",
+        'Micro-Competencia': s.micro_competencia if hasattr(s, 'micro_competencia') and s.micro_competencia else s.topic,
         'Dominio': s.mastery_score
     } for s in skills])
     
-    fig = px.sunburst(df_skills, path=['Eje', 'Competencia'], values='Dominio',
+    fig = px.sunburst(df_skills, path=['Eje', 'Macro-Dominio', 'Micro-Competencia'], values='Dominio',
                   color='Dominio', color_continuous_scale='RdYlGn',
                   range_color=[0, 100])
     fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
@@ -79,14 +80,14 @@ st.markdown('</div>', unsafe_allow_html=True)
 col_d1, col_d2 = st.columns(2)
 
 with col_d1:
-    st.subheader("🛡️ Radar de Competencias")
+    st.subheader("🛡️ Radar de Macro-Dominios")
     if skills:
-        avg_competencies = df_skills.groupby('Competencia')['Dominio'].mean().reset_index()
+        avg_competencies = df_skills.groupby('Macro-Dominio')['Dominio'].mean().reset_index()
         fig_radar = go.Figure()
         # Actual Mastery
         fig_radar.add_trace(go.Scatterpolar(
             r=avg_competencies['Dominio'],
-            theta=avg_competencies['Competencia'],
+            theta=avg_competencies['Macro-Dominio'],
             fill='toself',
             name='Dominio Actual',
             line_color='#2c3e50',
@@ -94,9 +95,9 @@ with col_d1:
         ))
         # Target Mastery (Ideal 90%)
         fig_radar.add_trace(go.Scatterpolar(
-            r=[90] * len(avg_competencies),
-            theta=avg_competencies['Competencia'],
-            name='Meta (90%)',
+            r=[70] * len(avg_competencies),
+            theta=avg_competencies['Macro-Dominio'],
+            name='Umbral Aprobación (70%)',
             line_color='rgba(230, 0, 0, 0.5)',
             line_dash='dot'
         ))

@@ -13,6 +13,8 @@ class Question(Base):
     track = Column(String, nullable=False)  # FUNCIONAL | COMPORTAMENTAL | INTEGRIDAD
     competency = Column(String, nullable=False)
     topic = Column(String, nullable=False)
+    macro_dominio = Column(String, nullable=True) # Específico GOA
+    micro_competencia = Column(String, nullable=True) # Específico GOA
     difficulty = Column(Integer, nullable=False) # 1-5
     stem = Column(Text, nullable=False)
     options_json = Column(JSON, nullable=False)

@@ -193,14 +193,14 @@ with col2:
                 
                 diff_labels = {1: "🟢 Básico", 2: "🟡 Intermedio", 3: "🔴 Avanzado"}
                 diff_tag = diff_labels.get(q.get('difficulty', 2), "Intermedio")
-                st.caption(f"{q['track']} | {q['topic']} | Dificultad: {diff_tag}")
+                st.caption(f"{q['track']} | **{q.get('macro_dominio', 'Macro')}** > {q.get('micro_competencia', 'Micro')} | Dificultad: {diff_tag}")
                 
                 # Show Options
                 ops = q.get('options_json', {})
                 if ops:
-                    cols_ops = st.columns(2)
+                    cols_ops = st.columns(min(3, len(ops)))
                     for idx, (k, v) in enumerate(ops.items()):
-                        cols_ops[idx % 2].text(f"{k}) {v}")
+                        cols_ops[idx % 3].text(f"{k}) {v}")
                 
                 st.markdown(f"<span style='color: #4CAF50; font-weight: bold;'>Respuesta Correcta: {q['correct_key']}</span>", unsafe_allow_html=True)
                 
@@ -229,19 +229,18 @@ with col2:
                     data = candidates[i]
                     h = data.get('hash_norm')
                     
-                    # Evitar duplicados dentro del mismo lote que estamos guardando
                     if h in local_seen_hashes:
                         already_exists += 1
                         continue
                     
-                    # Final check before insert against DB
                     existing = db.query(Question).filter_by(hash_norm=h).first()
                     if not existing:
-                        # Manual mapping for maximum reliability with SQLAlchemy
                         new_q = Question(
                             question_id=str(uuid.uuid4()),
                             track=data.get('track', 'FUNCIONAL'),
-                            competency=data.get('competency', 'General'),
+                            macro_dominio=data.get('macro_dominio'),
+                            micro_competencia=data.get('micro_competencia'),
+                            competency=data.get('micro_competencia', data.get('competency', 'General')),
                             topic=data.get('topic', 'Generado por IA'),
                             difficulty=data.get('difficulty', 2),
                             stem=data.get('stem'),

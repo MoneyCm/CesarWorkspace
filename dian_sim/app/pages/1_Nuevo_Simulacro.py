@@ -59,7 +59,12 @@ with st.container():
             topic_filter = st.multiselect("Tema Específico", sorted(all_topics))
             
             st.markdown("<br>", unsafe_allow_html=True)
-            only_situational_manual = st.toggle("Solo preguntas situacionales (Nuevas)", value=True, help="Filtra para mostrar solo preguntas que plantean casos prácticos.", key="only_sit_manual")
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                only_situational_manual = st.toggle("Solo preguntas situacionales", value=True, help="Filtra para mostrar solo preguntas que plantean casos prácticos.", key="only_sit_manual")
+            with col_t2:
+                hardcore_mode = st.toggle("🛡️ Modo Hardcore DIAN", value=False, help="Simula el examen real: mezcla temas, oculta respuestas hasta el final y aplica tiempos estrictos.")
+            
             submitted_manual = st.form_submit_button("🚀 Iniciar Simulacro Manual", type="primary")
 
     # --- PROFILE MODE ---
@@ -128,7 +133,8 @@ if submitted_manual:
         "competencies": competency_filter,
         "topics": topic_filter,
         "difficulties": difficulty_filter,
-        "only_situational": only_situational_manual
+        "only_situational": only_situational_manual,
+        "hardcore": hardcore_mode
     }
 
 if submitted_profile and selected_profile_name:
@@ -177,6 +183,7 @@ if run_sim:
         st.session_state["exam_questions"] = [q.question_id for q in selected] # Store IDs
         st.session_state["current_idx"] = 0
         st.session_state["answers"] = {} # {q_id: chosen_key}
+        st.session_state["hardcore_mode"] = final_query_filters.get("hardcore", False)
         
         st.switch_page("pages/2_Ejecucion.py") # Use switch_page directly instead of rerun loop logic
 
