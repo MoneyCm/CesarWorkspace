@@ -28,6 +28,27 @@ Esta configuración permite que **SISC Jamundí** funcione en cualquier PC sin i
 2.  Asegúrate de haber hecho `git pull origin main` en la terminal para tener los últimos arreglos.
 3.  Confirma que el puerto **8000** esté en modo **Public**.
 
+### Como probar desde OTRO PC 💻➡️💻
+
+Tienes dos formas principales de mostrarle el sistema a otra persona en una computadora diferente:
+
+#### Opción A: Usando GitHub (La más fácil)
+1.  **En el PC nuevo**: Entra a tu cuenta de GitHub y ve al repositorio.
+2.  **Abre el Codespace**: Dale al botón "Code" > "Codespaces" y entra al que ya tienes creado (o crea uno nuevo).
+3.  **Encender**: Una vez adentro, ejecuta `python backend/main.py` y `npm run dev` en el frontend.
+4.  **Poner en Público**: Importante ir a la pestaña **PORTS** y poner el **8000** en **Public**. ¡Listo! Ya puedes ver la URL personalizada.
+
+#### Opción B: Compartir el enlace (Sin que la otra persona instale nada)
+1.  En tu PC actual (donde ya tienes el Codespace corriendo), ve a la pestaña **PORTS**.
+2.  Pon el puerto **5173** (Frontend) en **Public**.
+3.  Copia la URL que aparece en "Forwarded Address" y pásasela a la otra persona. 
+    *   *Nota: La otra persona también necesita que el puerto 8000 esté en Public para que carguen los datos.*
+
+#### Opción C: Instalación Local (Con Docker)
+1.  En el PC nuevo, instala **Docker Desktop**.
+2.  Clona tu repositorio: `git clone <tu-url-del-repo>`.
+3.  Ejecuta el script: `./setup.ps1` (en Windows) o `docker-compose up --build`.
+
 ### Ventajas:
 - **Gratis**: Incluido en las horas gratuitas de GitHub.
 - **Sin Instalación**: Útil para presentaciones en computadores ajenos.

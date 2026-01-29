@@ -73,26 +73,70 @@ INSERT INTO event_types (category, subcategory) VALUES
 ('LESIONES PERSONALES', 'EN RIÑA'),
 ('VIOLENCIA INTRAFAMILIAR', 'GENERAL');
 
--- 5. Eventos (Cuerpo Central)
+-- 5. Eventos (Formato SEM 48)
 CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    external_id VARCHAR(100), -- ID en el sistema de origen
-    source_id INT REFERENCES sources(id),
-    event_type_id INT REFERENCES event_types(id),
-    occurrence_date DATE NOT NULL,
-    occurrence_time TIME NOT NULL,
+    
+    -- Jurisdicción y Ubicación
+    juris_depto VARCHAR(100),
+    municipio VARCHAR(100),
     barrio VARCHAR(100),
+    zona VARCHAR(50),
+    juris_distrito VARCHAR(100),
+    juris_estacion VARCHAR(100),
+    juris_cai VARCHAR(100),
+    juris_dependencia VARCHAR(100),
+    clase_sitio VARCHAR(100),
+    
+    -- Hecho
+    hechos_id INT,
+    descripcion_conducta VARCHAR(255),
+    modalidad VARCHAR(100),
+    armas_medios VARCHAR(100),
+    fecha_hecho DATE NOT NULL,
+    hora_hecho TIME NOT NULL,
+    anio INT,
+    mes VARCHAR(20),
+    nro_semana INT,
+    semana_hecho VARCHAR(50),
+    dia_semana VARCHAR(20),
+    intervalos_hora VARCHAR(50),
+    hora24 INT,
+    turno VARCHAR(20),
+    
+    -- Persona/Víctima
+    genero VARCHAR(20),
+    edad VARCHAR(20),
+    agrupa_edad_persona VARCHAR(50),
+    grupos_vulnerables_persona VARCHAR(100),
+    pais_persona VARCHAR(50),
+    tipo_identificacion VARCHAR(50),
+    profesiones VARCHAR(100),
+    grado_instruccion_persona VARCHAR(100),
+    cargo_persona VARCHAR(100),
+    clase_empleado_descripcion VARCHAR(100),
+    
+    -- Caracterización y SPOA
+    causas_lesion_muerte_persona VARCHAR(255),
+    spoa_caracterizacion TEXT,
+    spoa_caracterizacion_id VARCHAR(50),
+    spoa_motivacion VARCHAR(255),
+    conductas_especiales VARCHAR(100),
+    medio_conocimiento VARCHAR(100),
+    
+    -- Administrativos
+    nro_fuente_hecho INT,
+    unidad_apoya VARCHAR(100),
+    razon_social VARCHAR(100),
+    nivel_gestion_estatal VARCHAR(100),
+    count_2024 INT,
+    count_2025 INT,
+    
+    -- Relacionales / Legacy
+    event_type_id INT REFERENCES event_types(id),
     estado VARCHAR(50) DEFAULT 'Abierto',
-    descripcion TEXT,
-    territory_id INT REFERENCES territories(id),
+    descripcion_adicional TEXT,
     location_geom GEOMETRY(POINT, 4326),
-    address_text TEXT,
-    modality VARCHAR(100),
-    weapon VARCHAR(100),
-    victim_gender VARCHAR(20),
-    victim_age INT,
-    victim_id_hashed TEXT, -- Seudonimización
-    ingestion_id UUID, -- Referencia al log de carga
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
